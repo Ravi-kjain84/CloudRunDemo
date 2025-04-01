@@ -1,17 +1,11 @@
-Certainly. Here’s a crisper, clearly structured version broken into concise paragraphs:
+6.3 Guidelines for Automation Tool Selection
+Select tools that add clear value beyond existing solutions in functionality, efficiency, or integration.
 
-⸻
+Ensure all tools are reviewed and approved by the IT team for compatibility and support.
 
-DataGuard: SmartCompare for Testing Consistency
+Confirm compliance with data governance and security standards.
 
-DataGuard is a tool designed to help teams identify discrepancies and variances in datasets across multiple releases and regulatory environments. It supports data integrity and consistency, particularly in complex reporting scenarios.
+Prioritize tools that are scalable, reusable, and align with the current technology stack.
 
-Built on Looker with BigQuery and Python integrations, DataGuard includes the SmartCompare module, which enables targeted validation of critical metrics across batches, environments, and regulatory views.
+Align tool selection with the strategic objectives of the Testing Center of Excellence.
 
-SmartCompare allows users to select datasets, regulators, and environments using dropdown filters, then compares metrics like RWAs, Exposures, and Estimated Losses. This ensures alignment across releases and regulatory expectations.
-
-The tool highlights inconsistencies across regulatory standards to support compliance and flags early regressions in data, helping teams act proactively within the development cycle.
-
-⸻
-
-Let me know if you’d like to include use cases or align this section with specific phases of your testing strategy.
