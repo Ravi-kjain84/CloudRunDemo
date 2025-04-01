@@ -1,0 +1,17 @@
+Certainly. Here’s a crisper, clearly structured version broken into concise paragraphs:
+
+⸻
+
+DataGuard: SmartCompare for Testing Consistency
+
+DataGuard is a tool designed to help teams identify discrepancies and variances in datasets across multiple releases and regulatory environments. It supports data integrity and consistency, particularly in complex reporting scenarios.
+
+Built on Looker with BigQuery and Python integrations, DataGuard includes the SmartCompare module, which enables targeted validation of critical metrics across batches, environments, and regulatory views.
+
+SmartCompare allows users to select datasets, regulators, and environments using dropdown filters, then compares metrics like RWAs, Exposures, and Estimated Losses. This ensures alignment across releases and regulatory expectations.
+
+The tool highlights inconsistencies across regulatory standards to support compliance and flags early regressions in data, helping teams act proactively within the development cycle.
+
+⸻
+
+Let me know if you’d like to include use cases or align this section with specific phases of your testing strategy.
