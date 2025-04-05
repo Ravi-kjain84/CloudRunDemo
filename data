@@ -1,39 +1,92 @@
-Yes, great suggestion. Here’s the revised version that makes those points sharper and clearly distinguishes between the **June pilot (testing strategy)** and the **July pilot (Agile Pod setup + team alignment):**
+-- Step 1: Aggregate RWA by Exposure Class and Reporting Approach
+WITH rwa_dataset1 AS (
+  SELECT 
+    RP.Post_CRM_PRA_Reporting_Approach AS reporting_approach,
+    RP.Pre_CRM_Corep_Exposure_Class AS exposure_class,
+    SUM(RP.RWA_Post_Supporting_Factor_USD) AS total_rwa_1
+  FROM `project.dataset1.FOTC_GRP_RWA_RP_OUTPUT` AS RP
+  WHERE RP.PRA_Reporting_Approach_Flag = 'Y'
+    AND RP.source = 'RWA_PC'
+    AND RP.Interco_Flag = 'N'
+    AND RP.NCCR_Flag = 'N'
+    AND RP.grca_entity_identifier IN ('4435', '4475')
+  GROUP BY reporting_approach, exposure_class
+),
 
----
+rwa_dataset2 AS (
+  SELECT 
+    RP.Post_CRM_PRA_Reporting_Approach AS reporting_approach,
+    RP.Pre_CRM_Corep_Exposure_Class AS exposure_class,
+    SUM(RP.RWA_Post_Supporting_Factor_USD) AS total_rwa_2
+  FROM `project.dataset2.FOTC_GRP_RWA_RP_OUTPUT` AS RP
+  WHERE RP.PRA_Reporting_Approach_Flag = 'Y'
+    AND RP.source = 'RWA_PC'
+    AND RP.Interco_Flag = 'N'
+    AND RP.NCCR_Flag = 'N'
+    AND RP.grca_entity_identifier IN ('4435', '4475')
+  GROUP BY reporting_approach, exposure_class
+),
 
-**Subject:** Thank You and Next Steps
+-- Step 2: Identify mismatches or missing groups
+mismatches AS (
+  SELECT 
+    COALESCE(d1.reporting_approach, d2.reporting_approach) AS reporting_approach,
+    COALESCE(d1.exposure_class, d2.exposure_class) AS exposure_class,
+    d1.total_rwa_1,
+    d2.total_rwa_2,
+    CASE
+      WHEN d1.total_rwa_1 IS NULL THEN 'Missing in Dataset 1'
+      WHEN d2.total_rwa_2 IS NULL THEN 'Missing in Dataset 2'
+      WHEN d1.total_rwa_1 != d2.total_rwa_2 THEN 'RWA Mismatch'
+      ELSE 'Match'
+    END AS mismatch_type
+  FROM rwa_dataset1 d1
+  FULL OUTER JOIN rwa_dataset2 d2
+    ON d1.reporting_approach = d2.reporting_approach
+    AND d1.exposure_class = d2.exposure_class
+  WHERE IFNULL(d1.total_rwa_1, 0) != IFNULL(d2.total_rwa_2, 0)
+),
 
-Hi Adrian,
+-- Step 3: Customer group level drill-down where mismatches exist
+granular_compare AS (
+  SELECT 
+    d1.Post_CRM_PRA_Reporting_Approach AS reporting_approach,
+    d1.Pre_CRM_Corep_Exposure_Class AS exposure_class,
+    d1.customer_group,
+    SUM(d1.RWA_Post_Supporting_Factor_USD) AS rwa_1,
+    SUM(d2.RWA_Post_Supporting_Factor_USD) AS rwa_2
+  FROM `project.dataset1.FOTC_GRP_RWA_RP_OUTPUT` d1
+  JOIN `project.dataset2.FOTC_GRP_RWA_RP_OUTPUT` d2
+    ON d1.customer_group = d2.customer_group
+    AND d1.Post_CRM_PRA_Reporting_Approach = d2.Post_CRM_PRA_Reporting_Approach
+    AND d1.Pre_CRM_Corep_Exposure_Class = d2.Pre_CRM_Corep_Exposure_Class
+  WHERE d1.PRA_Reporting_Approach_Flag = 'Y'
+    AND d1.source = 'RWA_PC'
+    AND d1.Interco_Flag = 'N'
+    AND d1.NCCR_Flag = 'N'
+    AND d1.grca_entity_identifier IN ('4435', '4475')
+    AND d2.PRA_Reporting_Approach_Flag = 'Y'
+    AND d2.source = 'RWA_PC'
+    AND d2.Interco_Flag = 'N'
+    AND d2.NCCR_Flag = 'N'
+    AND d2.grca_entity_identifier IN ('4435', '4475')
+    AND (d1.Post_CRM_PRA_Reporting_Approach, d1.Pre_CRM_Corep_Exposure_Class) IN (
+      SELECT reporting_approach, exposure_class FROM mismatches WHERE mismatch_type = 'RWA Mismatch'
+    )
+  GROUP BY reporting_approach, exposure_class, customer_group
+)
 
-Thank you for your time yesterday. I truly appreciate your guidance—it’s been instrumental in shaping the next steps. Here’s the plan going forward:
+-- Final Output
+SELECT * FROM mismatches
 
-1. **June Pilot – Testing Strategy:**  
-   I’ve started aligning with Rakesh to prepare the team for the June month-end pilot focused on the overall testing strategy.
+UNION ALL
 
-2. **July Pilot – Agile Pod Setup & Team Alignment:**  
-   We’ll begin structuring the testing team into Agile Pods and align ways of working in preparation for the July month-end pilot run.
-
-3. **Agile Model Draft:**  
-   I’ll research and share a draft version of the Agile structure for your review and feedback.
-
-4. **Stakeholder Discussion:**  
-   I’ll set up a call with Ritesh, Rakesh, Girish, Krishan, and Rohit to walk through the plan. You’ll be added as optional.
-
-5. **Success Criteria & Benefit Matrix:**  
-   I’ll prepare a matrix outlining expected benefits and success measures for the June release and pilot.
-
-6. **Q3 Testing Team Awareness:**  
-   The Q3 team will be informed and encouraged to align with the June pilot’s strategy and guidelines.
-
-7. **Advisory Group – 28 April:**  
-   Once the draft is ready, I’ll invite you to the advisory group meeting to discuss the July pilot and Agile setup.
-
-Thanks again for your support—I’ll keep you updated.
-
-Best regards,  
-[Your Name]
-
----
-
-Let me know if you'd like a version that sounds slightly more formal or one tailored for executive-level stakeholders.
+SELECT 
+  reporting_approach,
+  exposure_class,
+  customer_group,
+  rwa_1 AS total_rwa_1,
+  rwa_2 AS total_rwa_2,
+  'Customer Group Drill-Down' AS mismatch_type
+FROM granular_compare
+WHERE rwa_1 != rwa_2
