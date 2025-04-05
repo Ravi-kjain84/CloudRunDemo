@@ -1,1 +1,117 @@
 
+CREATE OR REPLACE VIEW `hsbc-finance-data.your_dataset_name.vw_RWA_Granular_Mismatch` AS
+
+-- Step A: Pre-aggregate dataset1 and dataset2 at customer group level
+WITH dataset1_grouped AS (
+  SELECT 
+    Post_CRM_PRA_Reporting_Approach AS reporting_approach,
+    Pre_CRM_Corep_Exposure_Class AS exposure_class,
+    customer_group,
+    SUM(RWA_Post_Supporting_Factor_USD) AS total_rwa_1,
+    SUM(Original_Exposure_Pre_CCF_USD) AS total_orig_exposure_1,
+    SUM(EAD_USD) AS total_ead_1
+  FROM `hsbc-finance-data.ROHBMECOMBINEDRRoHBME01FOTCRWACALCFIRSTUNADJ20250327081914.FOTC_GRP_RWA_RP_OUTPUT`
+  WHERE PRA_Reporting_Approach_Flag = 'Y'
+    AND source = 'RWA_PC'
+    AND Interco_Flag = 'N'
+    AND NCCR_Flag = 'NCCR'
+    AND grca_entity_identifier IN ('4435', '4475')
+  GROUP BY reporting_approach, exposure_class, customer_group
+),
+
+dataset2_grouped AS (
+  SELECT 
+    Post_CRM_PRA_Reporting_Approach AS reporting_approach,
+    Pre_CRM_Corep_Exposure_Class AS exposure_class,
+    customer_group,
+    SUM(RWA_Post_Supporting_Factor_USD) AS total_rwa_2,
+    SUM(Original_Exposure_Pre_CCF_USD) AS total_orig_exposure_2,
+    SUM(EAD_USD) AS total_ead_2
+  FROM `hsbc-finance-data.ROHBMECOMBINEDRRoHBME01FOTCRWACALCFIRSTUNADJ20250310084144.FOTC_GRP_RWA_RP_OUTPUT`
+  WHERE PRA_Reporting_Approach_Flag = 'Y'
+    AND source = 'RWA_PC'
+    AND Interco_Flag = 'N'
+    AND NCCR_Flag = 'NCCR'
+    AND grca_entity_identifier IN ('4435', '4475')
+  GROUP BY reporting_approach, exposure_class, customer_group
+),
+
+-- Step B: Define mismatches at class level (referenced for filtering)
+mismatches AS (
+  SELECT 
+    COALESCE(d1.reporting_approach, d2.reporting_approach) AS reporting_approach,
+    COALESCE(d1.exposure_class, d2.exposure_class) AS exposure_class,
+    d1.total_rwa_1,
+    d2.total_rwa_2,
+    CASE
+      WHEN d1.reporting_approach IS NULL THEN 'Missing in Dataset 1'
+      WHEN d2.reporting_approach IS NULL THEN 'Missing in Dataset 2'
+      ELSE 'RWA Mismatch'
+    END AS mismatch_type
+  FROM (
+    SELECT 
+      Post_CRM_PRA_Reporting_Approach AS reporting_approach,
+      Pre_CRM_Corep_Exposure_Class AS exposure_class,
+      SUM(RWA_Post_Supporting_Factor_USD) AS total_rwa_1
+    FROM `hsbc-finance-data.ROHBMECOMBINEDRRoHBME01FOTCRWACALCFIRSTUNADJ20250327081914.FOTC_GRP_RWA_RP_OUTPUT`
+    WHERE PRA_Reporting_Approach_Flag = 'Y'
+      AND source = 'RWA_PC'
+      AND Interco_Flag = 'N'
+      AND NCCR_Flag = 'NCCR'
+      AND grca_entity_identifier IN ('4435', '4475')
+    GROUP BY reporting_approach, exposure_class
+  ) d1
+  FULL OUTER JOIN (
+    SELECT 
+      Post_CRM_PRA_Reporting_Approach AS reporting_approach,
+      Pre_CRM_Corep_Exposure_Class AS exposure_class,
+      SUM(RWA_Post_Supporting_Factor_USD) AS total_rwa_2
+    FROM `hsbc-finance-data.ROHBMECOMBINEDRRoHBME01FOTCRWACALCFIRSTUNADJ20250310084144.FOTC_GRP_RWA_RP_OUTPUT`
+    WHERE PRA_Reporting_Approach_Flag = 'Y'
+      AND source = 'RWA_PC'
+      AND Interco_Flag = 'N'
+      AND NCCR_Flag = 'NCCR'
+      AND grca_entity_identifier IN ('4435', '4475')
+    GROUP BY reporting_approach, exposure_class
+  ) d2
+  ON d1.reporting_approach = d2.reporting_approach AND d1.exposure_class = d2.exposure_class
+  WHERE IFNULL(d1.total_rwa_1, 0) != IFNULL(d2.total_rwa_2, 0)
+),
+
+-- Step C: Granular Compare with Metrics
+granular_compare AS (
+  SELECT 
+    d1.reporting_approach,
+    d1.exposure_class,
+    d1.customer_group,
+    d1.total_rwa_1,
+    d2.total_rwa_2,
+    d1.total_orig_exposure_1,
+    d2.total_orig_exposure_2,
+    d1.total_ead_1,
+    d2.total_ead_2,
+
+    SAFE_DIVIDE(ABS(d1.total_rwa_1 - d2.total_rwa_2), NULLIF(d1.total_rwa_1, 0)) * 100 AS rwa_diff_pct,
+    SAFE_DIVIDE(ABS(d1.total_orig_exposure_1 - d2.total_orig_exposure_2), NULLIF(d1.total_orig_exposure_1, 0)) * 100 AS orig_exp_diff_pct,
+    SAFE_DIVIDE(ABS(d1.total_ead_1 - d2.total_ead_2), NULLIF(d1.total_ead_1, 0)) * 100 AS ead_diff_pct,
+
+    'Customer Group Drill-Down' AS mismatch_type
+  FROM dataset1_grouped d1
+  JOIN dataset2_grouped d2
+    ON d1.reporting_approach = d2.reporting_approach
+    AND d1.exposure_class = d2.exposure_class
+    AND d1.customer_group = d2.customer_group
+  JOIN (
+    SELECT DISTINCT reporting_approach, exposure_class
+    FROM mismatches
+    WHERE mismatch_type LIKE '%RWA Mismatch%'
+  ) mismatch_keys
+    ON d1.reporting_approach = mismatch_keys.reporting_approach
+    AND d1.exposure_class = mismatch_keys.exposure_class
+)
+
+-- Final Output from View
+SELECT *
+FROM granular_compare
+WHERE rwa_diff_pct > 5 OR orig_exp_diff_pct > 5 OR ead_diff_pct > 5
+ORDER BY rwa_diff_pct DESC;
