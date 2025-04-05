@@ -4,7 +4,7 @@ WITH rwa_dataset1 AS (
     RP.Post_CRM_PRA_Reporting_Approach AS reporting_approach,
     RP.Pre_CRM_Corep_Exposure_Class AS exposure_class,
     SUM(RP.RWA_Post_Supporting_Factor_USD) AS total_rwa_1
-  FROM `project.dataset1.FOTC_GRP_RWA_RP_OUTPUT` AS RP
+  FROM `ROHBMECOMBINEDRRoHBME01FOTCRWACALCFIRSTUNADJ20250327081914.FOTC_GRP_RWA_RP_OUTPUT` AS RP
   WHERE RP.PRA_Reporting_Approach_Flag = 'Y'
     AND RP.source = 'RWA_PC'
     AND RP.Interco_Flag = 'N'
@@ -18,7 +18,7 @@ rwa_dataset2 AS (
     RP.Post_CRM_PRA_Reporting_Approach AS reporting_approach,
     RP.Pre_CRM_Corep_Exposure_Class AS exposure_class,
     SUM(RP.RWA_Post_Supporting_Factor_USD) AS total_rwa_2
-  FROM `project.dataset2.FOTC_GRP_RWA_RP_OUTPUT` AS RP
+  FROM `ROHBMECOMBINEDRRoHBME01FOTCRWACALCFIRSTUNADJ20250310084144.FOTC_GRP_RWA_RP_OUTPUT` AS RP
   WHERE RP.PRA_Reporting_Approach_Flag = 'Y'
     AND RP.source = 'RWA_PC'
     AND RP.Interco_Flag = 'N'
@@ -27,7 +27,7 @@ rwa_dataset2 AS (
   GROUP BY reporting_approach, exposure_class
 ),
 
--- Step 2: Identify mismatches or missing groups
+-- Step 2: Find mismatches and missing exposure classes/approaches
 mismatches AS (
   SELECT 
     COALESCE(d1.reporting_approach, d2.reporting_approach) AS reporting_approach,
@@ -47,7 +47,7 @@ mismatches AS (
   WHERE IFNULL(d1.total_rwa_1, 0) != IFNULL(d2.total_rwa_2, 0)
 ),
 
--- Step 3: Customer group level drill-down where mismatches exist
+-- Step 3: Drill down into mismatched combinations at customer group level
 granular_compare AS (
   SELECT 
     d1.Post_CRM_PRA_Reporting_Approach AS reporting_approach,
@@ -55,8 +55,8 @@ granular_compare AS (
     d1.customer_group,
     SUM(d1.RWA_Post_Supporting_Factor_USD) AS rwa_1,
     SUM(d2.RWA_Post_Supporting_Factor_USD) AS rwa_2
-  FROM `project.dataset1.FOTC_GRP_RWA_RP_OUTPUT` d1
-  JOIN `project.dataset2.FOTC_GRP_RWA_RP_OUTPUT` d2
+  FROM `ROHBMECOMBINEDRRoHBME01FOTCRWACALCFIRSTUNADJ20250327081914.FOTC_GRP_RWA_RP_OUTPUT` d1
+  JOIN `ROHBMECOMBINEDRRoHBME01FOTCRWACALCFIRSTUNADJ20250310084144.FOTC_GRP_RWA_RP_OUTPUT` d2
     ON d1.customer_group = d2.customer_group
     AND d1.Post_CRM_PRA_Reporting_Approach = d2.Post_CRM_PRA_Reporting_Approach
     AND d1.Pre_CRM_Corep_Exposure_Class = d2.Pre_CRM_Corep_Exposure_Class
@@ -70,8 +70,12 @@ granular_compare AS (
     AND d2.Interco_Flag = 'N'
     AND d2.NCCR_Flag = 'N'
     AND d2.grca_entity_identifier IN ('4435', '4475')
-    AND (d1.Post_CRM_PRA_Reporting_Approach, d1.Pre_CRM_Corep_Exposure_Class) IN (
-      SELECT reporting_approach, exposure_class FROM mismatches WHERE mismatch_type = 'RWA Mismatch'
+    AND EXISTS (
+      SELECT 1
+      FROM mismatches m
+      WHERE m.reporting_approach = d1.Post_CRM_PRA_Reporting_Approach
+        AND m.exposure_class = d1.Pre_CRM_Corep_Exposure_Class
+        AND m.mismatch_type = 'RWA Mismatch'
     )
   GROUP BY reporting_approach, exposure_class, customer_group
 )
