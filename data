@@ -1,9 +1,9 @@
-Subject: WCL Use Case Testing & Strategy Guidelines Review
 
-Dear [Recipient's Name],
 
-We will be continuing our discussion today on the WCL use case testing.
+Hi All,  
 
-In parallel, the Testing Advisory Group has collaboratively drafted the Testing Strategy Guidelines, which have been shared with relevant stakeholders for review.
+Thank you for your inputs during the recent discussion on the Testing Environment Strategy.  
 
-Please find the link below for your reference and feedback:
+The Testing Advisory Group has been working on this further and is currently discussing the use of the **Pre-Prod (Canary) environment** for UAT purposes.  
+
+Please find attached the **draft Testing Strategy Guidelines** for your review. Your feedback is welcome as we continue to shape the approach.  
