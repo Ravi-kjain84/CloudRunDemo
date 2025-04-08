@@ -1,1 +1,4 @@
-
+="{""dataset1"": {""project"": """ & A2 & """, ""dataset"": """ & B2 & """, ""table"": """ & C2 & """" & IF(D2<>"", ",""where"": """ & D2 & """", "") & "}, " & 
+"""dataset2"": {""project"": """ & E2 & """, ""dataset"": """ & F2 & """, ""table"": """ & G2 & """" & IF(H2<>"", ",""where"": """ & H2 & """", "") & "}, " & 
+"""local_database"": {""folder"": """ & I2 & """, ""file"": """ & J2 & """, ""sheet"": """ & K2 & """}, " & 
+"""include_columns"": [" & TEXTJOIN(",", TRUE, CHAR(34) & TRIM(TEXTSPLIT(L2, ",")) & CHAR(34)) & "]}"
