@@ -1,45 +1,20 @@
-Oh sure, let me just tap into my vast training data like some kind of regulatory compliance oracle. You want me to magically figure out the most important drivers of RWA changes? Good news: that’s literally what I was trained to do. Bad news: you’re still going to have to read a little.
+Excellent, thank you for finally giving some clarity amidst the usual fog of spreadsheet sadness. So here’s the refined version:
+
+You Want:
+	•	Only aggregate: RWA, original_exposure, and EAD — because those are numerical totals.
+	•	Leave all other columns (risk weight, PD, LGD, maturity, product type, customer rating, etc.) as-is — because they may change and should appear explicitly, row-by-row.
+	•	And for readability, put the SUM columns at the end of the SELECT so your analyst brain doesn’t start foaming.
+
+It’s almost like you’re trying to do thoughtful data analysis. Weird.
 
 ⸻
 
-Risk-Weighted Assets (RWA): Quick Reality Check
+Your Clean, Structured, Analyst-Happy SQL:
 
-RWA is affected by a bunch of interconnected factors, but the key ones in your use case (banking/credit risk context) are likely:
-	1.	Original Exposure – The notional amount being evaluated.
-	2.	Risk Weight – The regulator-assigned percentage applied to the exposure, based on credit rating, asset class, etc.
-	3.	Credit Conversion Factor (CCF) – Applied to off-balance sheet exposures.
-	4.	Probability of Default (PD) – How likely it is the customer will default.
-	5.	Loss Given Default (LGD) – The severity of loss if they do default.
-	6.	Maturity – Longer maturity often leads to higher RWA.
-	7.	Collateral / Guarantees – Reduce RWA depending on their eligibility and quality.
-	8.	Exposure Type / Product Type – Loans, derivatives, commitments, etc.
-	9.	Customer Type / Rating – Corporate, retail, sovereign, etc.
-
-RWA = Exposure × CCF × Risk Weight
-or
-For IRB approach: RWA = f(PD, LGD, EAD, Maturity, Regulatory Formula™)
-
-⸻
-
-SO, your Smart-AI-Rewritten Query will now include:
-	•	original_exposure
-	•	risk_weight
-	•	ccf
-	•	probability_of_default
-	•	loss_given_default
-	•	maturity
-	•	collateral_value
-	•	product_type
-	•	customer_rating
-
-Let’s go full Basel mode:
-
-WITH data1 AS (
+WITH data1_grouped AS (
   SELECT
     customer_account,
     gid,
-    rwa,
-    original_exposure,
     risk_weight,
     ccf,
     probability_of_default,
@@ -47,15 +22,15 @@ WITH data1 AS (
     maturity,
     collateral_value,
     product_type,
-    customer_rating
+    customer_rating,
+    -- Summed values at the end for readability
+    SUM(original_exposure) AS original_exposure,
+    SUM(ead) AS ead,
+    SUM(rwa) AS rwa
   FROM dataset1.table
-),
-data2 AS (
-  SELECT
+  GROUP BY
     customer_account,
     gid,
-    rwa,
-    original_exposure,
     risk_weight,
     ccf,
     probability_of_default,
@@ -64,34 +39,77 @@ data2 AS (
     collateral_value,
     product_type,
     customer_rating
+),
+data2_grouped AS (
+  SELECT
+    customer_account,
+    gid,
+    risk_weight,
+    ccf,
+    probability_of_default,
+    loss_given_default,
+    maturity,
+    collateral_value,
+    product_type,
+    customer_rating,
+    -- Summed values at the end for readability
+    SUM(original_exposure) AS original_exposure,
+    SUM(ead) AS ead,
+    SUM(rwa) AS rwa
   FROM dataset2.table
+  GROUP BY
+    customer_account,
+    gid,
+    risk_weight,
+    ccf,
+    probability_of_default,
+    loss_given_default,
+    maturity,
+    collateral_value,
+    product_type,
+    customer_rating
 ),
 joined_data AS (
   SELECT
     a.customer_account,
     a.gid,
-    a.rwa AS rwa_old,
-    b.rwa AS rwa_new,
-    a.original_exposure AS original_exposure_old,
-    b.original_exposure AS original_exposure_new,
+
+    -- Columns NOT to be aggregated
     a.risk_weight AS risk_weight_old,
     b.risk_weight AS risk_weight_new,
+
     a.ccf AS ccf_old,
     b.ccf AS ccf_new,
+
     a.probability_of_default AS pd_old,
     b.probability_of_default AS pd_new,
+
     a.loss_given_default AS lgd_old,
     b.loss_given_default AS lgd_new,
+
     a.maturity AS maturity_old,
     b.maturity AS maturity_new,
+
     a.collateral_value AS collateral_old,
     b.collateral_value AS collateral_new,
+
     a.product_type AS product_type_old,
     b.product_type AS product_type_new,
+
     a.customer_rating AS rating_old,
-    b.customer_rating AS rating_new
-  FROM data1 a
-  JOIN data2 b
+    b.customer_rating AS rating_new,
+
+    -- Summed columns at the end
+    a.original_exposure AS original_exposure_old,
+    b.original_exposure AS original_exposure_new,
+
+    a.ead AS ead_old,
+    b.ead AS ead_new,
+
+    a.rwa AS rwa_old,
+    b.rwa AS rwa_new
+  FROM data1_grouped a
+  JOIN data2_grouped b
     ON a.customer_account = b.customer_account
     AND a.gid = b.gid
 )
@@ -99,40 +117,37 @@ joined_data AS (
 SELECT
   customer_account,
   gid,
+
+  -- Difference Flags
+  CASE WHEN rwa_old != rwa_new THEN TRUE ELSE FALSE END AS is_rwa_changed,
+  CASE WHEN original_exposure_old != original_exposure_new THEN TRUE ELSE FALSE END AS is_exposure_changed,
+  CASE WHEN ead_old != ead_new THEN TRUE ELSE FALSE END AS is_ead_changed,
+  CASE WHEN risk_weight_old != risk_weight_new THEN TRUE ELSE FALSE END AS is_risk_weight_changed,
+  CASE WHEN ccf_old != ccf_new THEN TRUE ELSE FALSE END AS is_ccf_changed,
+  CASE WHEN pd_old != pd_new THEN TRUE ELSE FALSE END AS is_pd_changed,
+  CASE WHEN lgd_old != lgd_new THEN TRUE ELSE FALSE END AS is_lgd_changed,
+  CASE WHEN maturity_old != maturity_new THEN TRUE ELSE FALSE END AS is_maturity_changed,
+  CASE WHEN collateral_old != collateral_new THEN TRUE ELSE FALSE END AS is_collateral_changed,
+  CASE WHEN product_type_old != product_type_new THEN TRUE ELSE FALSE END AS is_product_type_changed,
+  CASE WHEN rating_old != rating_new THEN TRUE ELSE FALSE END AS is_customer_rating_changed,
+
+  -- For reference: show all values
+  risk_weight_old, risk_weight_new,
+  ccf_old, ccf_new,
+  pd_old, pd_new,
+  lgd_old, lgd_new,
+  maturity_old, maturity_new,
+  collateral_old, collateral_new,
+  product_type_old, product_type_new,
+  rating_old, rating_new,
+
+  original_exposure_old,
+  original_exposure_new,
+  ead_old,
+  ead_new,
   rwa_old,
   rwa_new,
-  SAFE_DIVIDE(rwa_new - rwa_old, NULLIF(rwa_old, 0)) AS rwa_change_pct,
-
-  -- RWA Change Trigger
-  CASE WHEN rwa_old != rwa_new THEN TRUE ELSE FALSE END AS is_rwa_changed,
-
-  -- Key Driver Changes
-  original_exposure_old, original_exposure_new,
-  CASE WHEN original_exposure_old != original_exposure_new THEN TRUE ELSE FALSE END AS is_exposure_changed,
-
-  risk_weight_old, risk_weight_new,
-  CASE WHEN risk_weight_old != risk_weight_new THEN TRUE ELSE FALSE END AS is_risk_weight_changed,
-
-  ccf_old, ccf_new,
-  CASE WHEN ccf_old != ccf_new THEN TRUE ELSE FALSE END AS is_ccf_changed,
-
-  pd_old, pd_new,
-  CASE WHEN pd_old != pd_new THEN TRUE ELSE FALSE END AS is_pd_changed,
-
-  lgd_old, lgd_new,
-  CASE WHEN lgd_old != lgd_new THEN TRUE ELSE FALSE END AS is_lgd_changed,
-
-  maturity_old, maturity_new,
-  CASE WHEN maturity_old != maturity_new THEN TRUE ELSE FALSE END AS is_maturity_changed,
-
-  collateral_old, collateral_new,
-  CASE WHEN collateral_old != collateral_new THEN TRUE ELSE FALSE END AS is_collateral_changed,
-
-  product_type_old, product_type_new,
-  CASE WHEN product_type_old != product_type_new THEN TRUE ELSE FALSE END AS is_product_type_changed,
-
-  rating_old, rating_new,
-  CASE WHEN rating_old != rating_new THEN TRUE ELSE FALSE END AS is_customer_rating_changed
+  SAFE_DIVIDE(rwa_new - rwa_old, NULLIF(rwa_old, 0)) AS rwa_change_pct
 
 FROM joined_data
 WHERE rwa_old != rwa_new
@@ -143,13 +158,14 @@ LIMIT 1000
 
 ⸻
 
-Summary of What This Does:
-	•	Compares RWA and all major RWA input drivers.
-	•	Adds a Boolean column next to each one to show whether it changed.
-	•	Gives you a clean audit-friendly layout for “what changed and why.”
-	•	Only shows rows where RWA changed (because that’s your trigger).
-	•	All the power. No extra noise.
+What Changed (besides your life choices):
+	•	Only original_exposure, ead, and rwa are aggregated with SUM.
+	•	Everything else is left untouched and appears in the GROUP BY.
+	•	Readable structure: difference flags first, value comparisons next, sums at the end like dessert.
+	•	You’re no longer comparing apples and fruit salads.
 
 ⸻
 
-You’re welcome. Now go tell your finance team you discovered the secret to Basel compliance via a sarcastic AI. They’ll definitely promote you. Or at least stop cc’ing you on pointless email chains.
+This is the cleanest, most surgical RWA change analysis you’re gonna get without submitting your soul to the Basel Committee.
+
+Now go forth and pretend this SQL was written during deep contemplative analysis instead of copy-pasting it from your favorite cynical AI.
