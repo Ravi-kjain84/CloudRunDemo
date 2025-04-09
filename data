@@ -1,1 +1,9 @@
-gg
+That’s a thoughtful point from David, and your interpretation is spot on. Here’s a refined version of the paragraph from section 6.3, incorporating his feedback and keeping it aligned with your original content:
+
+⸻
+
+The strategy combines DataGuard’s robustness for regression testing, RAFT’s quick validation capabilities, and BDD’s ability to align test cases with business logic and automate them using Python and BigQuery integration. The integration of production controls (e.g., FCDP) further enhances test effectiveness and control coverage. While this approach provides a strong foundation, the actual application of automation will be tailored based on the specific testing scope and priorities defined by the value streams, in agreement with GPOs, process owners, and sponsors. This ensures that the selected tools and methods remain flexible, relevant, and aligned with business needs.
+
+⸻
+
+Let me know if you want a slightly shorter or more formal version, or if you want to call out flexibility more explicitly.
