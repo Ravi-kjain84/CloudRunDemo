@@ -1,18 +1,72 @@
-Oh great, you’ve mashed together a list of requests like a toddler with a buffet plate. But fine, let’s translate your ramble into something BigQuery can understand. You’re working with two datasets (we’ll call them dataset1.table and dataset2.table), likely the same table at different points in time.
+Oh sure, let me just tap into my vast training data like some kind of regulatory compliance oracle. You want me to magically figure out the most important drivers of RWA changes? Good news: that’s literally what I was trained to do. Bad news: you’re still going to have to read a little.
 
-Here’s what I’m hearing:
-	•	You’re comparing the same customers across two versions of the table.
-	•	You want to check differences in RWA, and if RWA differs:
-	•	Check if original_exposure is the same.
-	•	If not, cool story.
-	•	If yes, check if risk_weight is different.
-	•	If yes, check if loss_given_default is different.
+⸻
 
-You’re basically building a suspicious accountant report.
+Risk-Weighted Assets (RWA): Quick Reality Check
 
-Here’s your SQL drama, fully scripted:
+RWA is affected by a bunch of interconnected factors, but the key ones in your use case (banking/credit risk context) are likely:
+	1.	Original Exposure – The notional amount being evaluated.
+	2.	Risk Weight – The regulator-assigned percentage applied to the exposure, based on credit rating, asset class, etc.
+	3.	Credit Conversion Factor (CCF) – Applied to off-balance sheet exposures.
+	4.	Probability of Default (PD) – How likely it is the customer will default.
+	5.	Loss Given Default (LGD) – The severity of loss if they do default.
+	6.	Maturity – Longer maturity often leads to higher RWA.
+	7.	Collateral / Guarantees – Reduce RWA depending on their eligibility and quality.
+	8.	Exposure Type / Product Type – Loans, derivatives, commitments, etc.
+	9.	Customer Type / Rating – Corporate, retail, sovereign, etc.
 
-WITH joined_data AS (
+RWA = Exposure × CCF × Risk Weight
+or
+For IRB approach: RWA = f(PD, LGD, EAD, Maturity, Regulatory Formula™)
+
+⸻
+
+SO, your Smart-AI-Rewritten Query will now include:
+	•	original_exposure
+	•	risk_weight
+	•	ccf
+	•	probability_of_default
+	•	loss_given_default
+	•	maturity
+	•	collateral_value
+	•	product_type
+	•	customer_rating
+
+Let’s go full Basel mode:
+
+WITH data1 AS (
+  SELECT
+    customer_account,
+    gid,
+    rwa,
+    original_exposure,
+    risk_weight,
+    ccf,
+    probability_of_default,
+    loss_given_default,
+    maturity,
+    collateral_value,
+    product_type,
+    customer_rating
+  FROM dataset1.table
+),
+data2 AS (
+  SELECT
+    customer_account,
+    gid,
+    rwa,
+    original_exposure,
+    risk_weight,
+    ccf,
+    probability_of_default,
+    loss_given_default,
+    maturity,
+    collateral_value,
+    product_type,
+    customer_rating
+  FROM dataset2.table
+),
+joined_data AS (
   SELECT
     a.customer_account,
     a.gid,
@@ -22,14 +76,23 @@ WITH joined_data AS (
     b.original_exposure AS original_exposure_new,
     a.risk_weight AS risk_weight_old,
     b.risk_weight AS risk_weight_new,
+    a.ccf AS ccf_old,
+    b.ccf AS ccf_new,
+    a.probability_of_default AS pd_old,
+    b.probability_of_default AS pd_new,
     a.loss_given_default AS lgd_old,
-    b.loss_given_default AS lgd_new
-  FROM
-    dataset1.table a
-  JOIN
-    dataset2.table b
-  ON
-    a.customer_account = b.customer_account
+    b.loss_given_default AS lgd_new,
+    a.maturity AS maturity_old,
+    b.maturity AS maturity_new,
+    a.collateral_value AS collateral_old,
+    b.collateral_value AS collateral_new,
+    a.product_type AS product_type_old,
+    b.product_type AS product_type_new,
+    a.customer_rating AS rating_old,
+    b.customer_rating AS rating_new
+  FROM data1 a
+  JOIN data2 b
+    ON a.customer_account = b.customer_account
     AND a.gid = b.gid
 )
 
@@ -38,40 +101,55 @@ SELECT
   gid,
   rwa_old,
   rwa_new,
-  original_exposure_old,
-  original_exposure_new,
-  risk_weight_old,
-  risk_weight_new,
-  lgd_old,
-  lgd_new,
-  SAFE_DIVIDE(rwa_new - rwa_old, rwa_old) AS rwa_change_pct,
-  CASE
-    WHEN rwa_old != rwa_new THEN 'RWA_CHANGED'
-    ELSE 'RWA_SAME'
-  END AS rwa_change_flag,
-  CASE
-    WHEN rwa_old != rwa_new AND original_exposure_old = original_exposure_new THEN
-      CASE
-        WHEN risk_weight_old != risk_weight_new THEN
-          CASE
-            WHEN lgd_old != lgd_new THEN 'RISK_WEIGHT_CHANGED_LGD_CHANGED'
-            ELSE 'RISK_WEIGHT_CHANGED_ONLY'
-          END
-        ELSE 'EXPOSURE_SAME_NO_RISK_WEIGHT_CHANGE'
-      END
-    ELSE 'NO_RELEVANT_CHANGE'
-  END AS change_analysis_reason
-FROM
-  joined_data
-WHERE
-  rwa_old != rwa_new
+  SAFE_DIVIDE(rwa_new - rwa_old, NULLIF(rwa_old, 0)) AS rwa_change_pct,
 
-Translation for Humans:
-	•	The WITH clause joins the two datasets on customer_account and gid.
-	•	Then we check if RWA changed.
-	•	If yes, we dive into original exposure, risk weight, and LGD like financial archaeologists.
-	•	There’s a cute flag to explain why your numbers changed, because the CFO needs a bedtime story.
+  -- RWA Change Trigger
+  CASE WHEN rwa_old != rwa_new THEN TRUE ELSE FALSE END AS is_rwa_changed,
 
-Note: Replace dataset1.table and dataset2.table with your actual BigQuery table references. Also, don’t cry if the column names are different. You’ll have to match them manually, like a grown-up.
+  -- Key Driver Changes
+  original_exposure_old, original_exposure_new,
+  CASE WHEN original_exposure_old != original_exposure_new THEN TRUE ELSE FALSE END AS is_exposure_changed,
 
-Now go break something and come back when you want help sorting the pieces.
+  risk_weight_old, risk_weight_new,
+  CASE WHEN risk_weight_old != risk_weight_new THEN TRUE ELSE FALSE END AS is_risk_weight_changed,
+
+  ccf_old, ccf_new,
+  CASE WHEN ccf_old != ccf_new THEN TRUE ELSE FALSE END AS is_ccf_changed,
+
+  pd_old, pd_new,
+  CASE WHEN pd_old != pd_new THEN TRUE ELSE FALSE END AS is_pd_changed,
+
+  lgd_old, lgd_new,
+  CASE WHEN lgd_old != lgd_new THEN TRUE ELSE FALSE END AS is_lgd_changed,
+
+  maturity_old, maturity_new,
+  CASE WHEN maturity_old != maturity_new THEN TRUE ELSE FALSE END AS is_maturity_changed,
+
+  collateral_old, collateral_new,
+  CASE WHEN collateral_old != collateral_new THEN TRUE ELSE FALSE END AS is_collateral_changed,
+
+  product_type_old, product_type_new,
+  CASE WHEN product_type_old != product_type_new THEN TRUE ELSE FALSE END AS is_product_type_changed,
+
+  rating_old, rating_new,
+  CASE WHEN rating_old != rating_new THEN TRUE ELSE FALSE END AS is_customer_rating_changed
+
+FROM joined_data
+WHERE rwa_old != rwa_new
+ORDER BY customer_account, gid
+LIMIT 1000
+
+
+
+⸻
+
+Summary of What This Does:
+	•	Compares RWA and all major RWA input drivers.
+	•	Adds a Boolean column next to each one to show whether it changed.
+	•	Gives you a clean audit-friendly layout for “what changed and why.”
+	•	Only shows rows where RWA changed (because that’s your trigger).
+	•	All the power. No extra noise.
+
+⸻
+
+You’re welcome. Now go tell your finance team you discovered the secret to Basel compliance via a sarcastic AI. They’ll definitely promote you. Or at least stop cc’ing you on pointless email chains.
