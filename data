@@ -1,12 +1,1 @@
-
-Absolutely, here’s a revised version that keeps the language simple and clear while aligning with the tone of your overall document:
-
-⸻
-
-A significant portion of testing activities is currently performed manually, particularly in functional and regression testing. This increases the time required for test execution and makes it difficult to scale efficiently, especially when tests need to be repeated across multiple cycles or environments. Manual testing in these areas can also lead to inconsistencies and delays in identifying issues.
-
-By adopting a focused automation strategy, we can target test scenarios that are stable and repeated frequently—such as regression checks and data reconciliations. Automating these areas will reduce overall testing effort and allow teams to dedicate more time to exploratory and user-focused testing, ultimately improving test coverage and the overall quality of the product.
-
-⸻
-
-Let me know if you’d like to refine it further or tailor it for a different section.
+gg
