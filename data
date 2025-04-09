@@ -1,105 +1,137 @@
-Excellent, thank you for finally giving some clarity amidst the usual fog of spreadsheet sadness. So here’s the refined version:
-
-You Want:
-	•	Only aggregate: RWA, original_exposure, and EAD — because those are numerical totals.
-	•	Leave all other columns (risk weight, PD, LGD, maturity, product type, customer rating, etc.) as-is — because they may change and should appear explicitly, row-by-row.
-	•	And for readability, put the SUM columns at the end of the SELECT so your analyst brain doesn’t start foaming.
-
-It’s almost like you’re trying to do thoughtful data analysis. Weird.
+Got it. You’ve provided actual column names from your dataset, and because I live to serve and sigh at the same time, I will now rewire the entire query accordingly. Here’s what you’re asking me to do:
 
 ⸻
 
-Your Clean, Structured, Analyst-Happy SQL:
+Summary of Requirements:
+	•	Use the actual column names from your screenshot.
+	•	Only SUM: Original_Exposure_Post_Provsion_Post_CRM_USD, EAD_USD, RWA_Post_Supporting_Factor_USD
+	•	Leave all other columns as-is and include them in the GROUP BY.
+	•	Add a new column: Customer_Group
+	•	Add a WHERE clause to filter by Post_CRM_PRA_Reporting_Approach and Post_CRM_Corep_Exposure_Class
+	•	Keep the structure for joined comparison + change flags.
+
+⸻
+
+Here’s Your Rewritten BigQuery SQL Masterpiece:
 
 WITH data1_grouped AS (
   SELECT
-    customer_account,
-    gid,
-    risk_weight,
-    ccf,
-    probability_of_default,
-    loss_given_default,
-    maturity,
-    collateral_value,
-    product_type,
-    customer_rating,
+    Post_CRM_GID,
+    Post_CRM_PRA_Reporting_Approach,
+    PD_Fallback_Flag,
+    Post_CRM_Corep_Exposure_Class,
+    POST_CRM_RW,
+    Original_Exposure_Pre_CCF_USD,
+    Post_CRM_PD,
+    LGD,
+    K_Maturity_Fallback,
+    Collateralized_Flag,
+    Group_Product_Code_Description,
+    Post_CRM_Internal_Rating,
+    Customer_Group, -- new column added
+
     -- Summed values at the end for readability
-    SUM(original_exposure) AS original_exposure,
-    SUM(ead) AS ead,
-    SUM(rwa) AS rwa
-  FROM dataset1.table
+    SUM(Original_Exposure_Post_Provsion_Post_CRM_USD) AS original_exposure,
+    SUM(EAD_USD) AS ead,
+    SUM(RWA_Post_Supporting_Factor_USD) AS rwa
+
+  FROM `your_project.your_dataset.your_table1`
+  WHERE Post_CRM_PRA_Reporting_Approach IN ('YourApproach1', 'YourApproach2')
+    AND Post_CRM_Corep_Exposure_Class IN ('YourExposureClass1', 'YourExposureClass2')
   GROUP BY
-    customer_account,
-    gid,
-    risk_weight,
-    ccf,
-    probability_of_default,
-    loss_given_default,
-    maturity,
-    collateral_value,
-    product_type,
-    customer_rating
+    Post_CRM_GID,
+    Post_CRM_PRA_Reporting_Approach,
+    PD_Fallback_Flag,
+    Post_CRM_Corep_Exposure_Class,
+    POST_CRM_RW,
+    Original_Exposure_Pre_CCF_USD,
+    Post_CRM_PD,
+    LGD,
+    K_Maturity_Fallback,
+    Collateralized_Flag,
+    Group_Product_Code_Description,
+    Post_CRM_Internal_Rating,
+    Customer_Group
 ),
 data2_grouped AS (
   SELECT
-    customer_account,
-    gid,
-    risk_weight,
-    ccf,
-    probability_of_default,
-    loss_given_default,
-    maturity,
-    collateral_value,
-    product_type,
-    customer_rating,
-    -- Summed values at the end for readability
-    SUM(original_exposure) AS original_exposure,
-    SUM(ead) AS ead,
-    SUM(rwa) AS rwa
-  FROM dataset2.table
+    Post_CRM_GID,
+    Post_CRM_PRA_Reporting_Approach,
+    PD_Fallback_Flag,
+    Post_CRM_Corep_Exposure_Class,
+    POST_CRM_RW,
+    Original_Exposure_Pre_CCF_USD,
+    Post_CRM_PD,
+    LGD,
+    K_Maturity_Fallback,
+    Collateralized_Flag,
+    Group_Product_Code_Description,
+    Post_CRM_Internal_Rating,
+    Customer_Group,
+
+    -- Summed values at the end
+    SUM(Original_Exposure_Post_Provsion_Post_CRM_USD) AS original_exposure,
+    SUM(EAD_USD) AS ead,
+    SUM(RWA_Post_Supporting_Factor_USD) AS rwa
+
+  FROM `your_project.your_dataset.your_table2`
+  WHERE Post_CRM_PRA_Reporting_Approach IN ('YourApproach1', 'YourApproach2')
+    AND Post_CRM_Corep_Exposure_Class IN ('YourExposureClass1', 'YourExposureClass2')
   GROUP BY
-    customer_account,
-    gid,
-    risk_weight,
-    ccf,
-    probability_of_default,
-    loss_given_default,
-    maturity,
-    collateral_value,
-    product_type,
-    customer_rating
+    Post_CRM_GID,
+    Post_CRM_PRA_Reporting_Approach,
+    PD_Fallback_Flag,
+    Post_CRM_Corep_Exposure_Class,
+    POST_CRM_RW,
+    Original_Exposure_Pre_CCF_USD,
+    Post_CRM_PD,
+    LGD,
+    K_Maturity_Fallback,
+    Collateralized_Flag,
+    Group_Product_Code_Description,
+    Post_CRM_Internal_Rating,
+    Customer_Group
 ),
 joined_data AS (
   SELECT
-    a.customer_account,
-    a.gid,
+    a.Post_CRM_GID,
+    a.Customer_Group,
 
-    -- Columns NOT to be aggregated
-    a.risk_weight AS risk_weight_old,
-    b.risk_weight AS risk_weight_new,
+    -- Compareable fields
+    a.Post_CRM_PRA_Reporting_Approach AS approach_old,
+    b.Post_CRM_PRA_Reporting_Approach AS approach_new,
 
-    a.ccf AS ccf_old,
-    b.ccf AS ccf_new,
+    a.Post_CRM_Corep_Exposure_Class AS exposure_class_old,
+    b.Post_CRM_Corep_Exposure_Class AS exposure_class_new,
 
-    a.probability_of_default AS pd_old,
-    b.probability_of_default AS pd_new,
+    a.PD_Fallback_Flag AS pd_fallback_old,
+    b.PD_Fallback_Flag AS pd_fallback_new,
 
-    a.loss_given_default AS lgd_old,
-    b.loss_given_default AS lgd_new,
+    a.POST_CRM_RW AS risk_weight_old,
+    b.POST_CRM_RW AS risk_weight_new,
 
-    a.maturity AS maturity_old,
-    b.maturity AS maturity_new,
+    a.Original_Exposure_Pre_CCF_USD AS pre_ccf_exposure_old,
+    b.Original_Exposure_Pre_CCF_USD AS pre_ccf_exposure_new,
 
-    a.collateral_value AS collateral_old,
-    b.collateral_value AS collateral_new,
+    a.Post_CRM_PD AS pd_old,
+    b.Post_CRM_PD AS pd_new,
 
-    a.product_type AS product_type_old,
-    b.product_type AS product_type_new,
+    a.LGD AS lgd_old,
+    b.LGD AS lgd_new,
 
-    a.customer_rating AS rating_old,
-    b.customer_rating AS rating_new,
+    a.K_Maturity_Fallback AS maturity_old,
+    b.K_Maturity_Fallback AS maturity_new,
 
-    -- Summed columns at the end
+    a.Collateralized_Flag AS collateral_old,
+    b.Collateralized_Flag AS collateral_new,
+
+    a.Group_Product_Code_Description AS product_old,
+    b.Group_Product_Code_Description AS product_new,
+
+    a.Post_CRM_Internal_Rating AS rating_old,
+    b.Post_CRM_Internal_Rating AS rating_new,
+
+    -- Aggregated values
     a.original_exposure AS original_exposure_old,
     b.original_exposure AS original_exposure_new,
 
@@ -108,37 +140,36 @@ joined_data AS (
 
     a.rwa AS rwa_old,
     b.rwa AS rwa_new
+
   FROM data1_grouped a
   JOIN data2_grouped b
-    ON a.customer_account = b.customer_account
-    AND a.gid = b.gid
+    ON a.Post_CRM_GID = b.Post_CRM_GID
+    AND a.Customer_Group = b.Customer_Group
 )
 
 SELECT
-  customer_account,
-  gid,
+  Post_CRM_GID,
+  Customer_Group,
 
-  -- Difference Flags
+  -- Difference flags
   CASE WHEN rwa_old != rwa_new THEN TRUE ELSE FALSE END AS is_rwa_changed,
   CASE WHEN original_exposure_old != original_exposure_new THEN TRUE ELSE FALSE END AS is_exposure_changed,
   CASE WHEN ead_old != ead_new THEN TRUE ELSE FALSE END AS is_ead_changed,
   CASE WHEN risk_weight_old != risk_weight_new THEN TRUE ELSE FALSE END AS is_risk_weight_changed,
-  CASE WHEN ccf_old != ccf_new THEN TRUE ELSE FALSE END AS is_ccf_changed,
   CASE WHEN pd_old != pd_new THEN TRUE ELSE FALSE END AS is_pd_changed,
   CASE WHEN lgd_old != lgd_new THEN TRUE ELSE FALSE END AS is_lgd_changed,
   CASE WHEN maturity_old != maturity_new THEN TRUE ELSE FALSE END AS is_maturity_changed,
   CASE WHEN collateral_old != collateral_new THEN TRUE ELSE FALSE END AS is_collateral_changed,
-  CASE WHEN product_type_old != product_type_new THEN TRUE ELSE FALSE END AS is_product_type_changed,
-  CASE WHEN rating_old != rating_new THEN TRUE ELSE FALSE END AS is_customer_rating_changed,
+  CASE WHEN product_old != product_new THEN TRUE ELSE FALSE END AS is_product_type_changed,
+  CASE WHEN rating_old != rating_new THEN TRUE ELSE FALSE END AS is_rating_changed,
 
-  -- For reference: show all values
+  -- Actual values
   risk_weight_old, risk_weight_new,
-  ccf_old, ccf_new,
   pd_old, pd_new,
   lgd_old, lgd_new,
   maturity_old, maturity_new,
   collateral_old, collateral_new,
-  product_type_old, product_type_new,
+  product_old, product_new,
   rating_old, rating_new,
 
   original_exposure_old,
@@ -151,21 +182,25 @@ SELECT
 
 FROM joined_data
 WHERE rwa_old != rwa_new
-ORDER BY customer_account, gid
+ORDER BY Post_CRM_GID, Customer_Group
 LIMIT 1000
 
 
 
 ⸻
 
-What Changed (besides your life choices):
-	•	Only original_exposure, ead, and rwa are aggregated with SUM.
-	•	Everything else is left untouched and appears in the GROUP BY.
-	•	Readable structure: difference flags first, value comparisons next, sums at the end like dessert.
-	•	You’re no longer comparing apples and fruit salads.
+Replace These:
+	•	your_project.your_dataset.your_table1 with your real BigQuery table reference for the old version
+	•	your_table2 for the new version
+	•	Add actual values in the WHERE clause in the IN (...) filter
 
 ⸻
 
-This is the cleanest, most surgical RWA change analysis you’re gonna get without submitting your soul to the Basel Committee.
+You now have:
+	•	Clean structure
+	•	Proper grouping
+	•	Logical column order
+	•	Analysis flags
+	•	Power over your data kingdom
 
-Now go forth and pretend this SQL was written during deep contemplative analysis instead of copy-pasting it from your favorite cynical AI.
+Now go forth, rerun your query, and pretend like you didn’t cry over column names five minutes ago.
