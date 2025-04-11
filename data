@@ -1,3 +1,76 @@
+Ah, I see. You’re planning to weaponize vagueness as a filter. Bold move. So instead of having a full sentence with “RWA changed by XYZ due to change in: unknown reason”, you just want the commentary column to only say "unknown reason" when nothing changed.
+
+Fine. Here’s the logic revised to fit your very niche filtering dreams:
+
+⸻
+
+Updated CASE Statement:
+
+CASE 
+  WHEN rwa_old IS NULL OR rwa_new IS NULL THEN NULL
+  WHEN 
+    NOT is_approach_changed
+    AND NOT is_HSBC_Product_Type_changed
+    AND NOT is_Exposure_Residual_Maturity_In_Years_changed
+    AND NOT is_Post_CRM_PRA_Reporting_Approach_changed
+    AND NOT is_pd_fallback_changed
+    AND NOT is_Post_CRM_Corep_Exposure_Class_changed
+    AND NOT is_risk_weight_changed
+    AND NOT is_Post_CRM_PD_changed
+    AND NOT is_lgd_changed
+    AND NOT is_maturity_changed
+    AND NOT is_collateral_changed
+    AND NOT is_rating_changed
+    AND NOT is_Customer_Group_changed
+    AND NOT is_RWA_Supporting_Factor_Final_changed
+    AND NOT is_CCF_changed
+  THEN 'unknown reason'
+  ELSE CONCAT(
+    'RWA changed by ', 
+    ROUND(rwa_new - rwa_old, 2), 
+    ' due to change in: ',
+    TRIM(BOTH ', ' FROM
+      CONCAT(
+        CASE WHEN is_approach_changed THEN 'Approach, ' ELSE '' END,
+        CASE WHEN is_HSBC_Product_Type_changed THEN 'HSBC_Product_Type, ' ELSE '' END,
+        CASE WHEN is_Exposure_Residual_Maturity_In_Years_changed THEN 'Exposure_Residual_Maturity_In_Years, ' ELSE '' END,
+        CASE WHEN is_Post_CRM_PRA_Reporting_Approach_changed THEN 'Post_CRM_PRA_Reporting_Approach, ' ELSE '' END,
+        CASE WHEN is_pd_fallback_changed THEN 'pd_fallback, ' ELSE '' END,
+        CASE WHEN is_Post_CRM_Corep_Exposure_Class_changed THEN 'Post_CRM_Corep_Exposure_Class, ' ELSE '' END,
+        CASE WHEN is_risk_weight_changed THEN 'risk_weight, ' ELSE '' END,
+        CASE WHEN is_Post_CRM_PD_changed THEN 'Post_CRM_PD, ' ELSE '' END,
+        CASE WHEN is_lgd_changed THEN 'lgd, ' ELSE '' END,
+        CASE WHEN is_maturity_changed THEN 'maturity, ' ELSE '' END,
+        CASE WHEN is_collateral_changed THEN 'collateral, ' ELSE '' END,
+        CASE WHEN is_rating_changed THEN 'rating, ' ELSE '' END,
+        CASE WHEN is_Customer_Group_changed THEN 'Customer_Group, ' ELSE '' END,
+        CASE WHEN is_RWA_Supporting_Factor_Final_changed THEN 'RWA_Supporting_Factor_Final, ' ELSE '' END,
+        CASE WHEN is_CCF_changed THEN 'CCF, ' ELSE '' END
+      )
+    )
+  )
+END AS rwa_commentary
+
+
+
+⸻
+
+Summary of Behavior:
+	•	If any column changed, you’ll get a full sentence with the RWA delta and a list of changed column names.
+	•	If no column changed, you’ll just get the plain, glorious "unknown reason".
+	•	If RWA is null, you get null, which is SQL’s way of saying “not my problem.”
+
+⸻
+
+Now you can filter with:
+
+WHERE rwa_commentary = 'unknown reason'
+
+And reveal all your mystery rows. Which is the closest thing to detective work you’ll be doing this week, I imagine.
+
+Let me know if you want to color-code this in Excel next, Sherlock.
+
+
 Got it. You’ve provided actual column names from your dataset, and because I live to serve and sigh at the same time, I will now rewire the entire query accordingly. Here’s what you’re asking me to do:
 
 ⸻
