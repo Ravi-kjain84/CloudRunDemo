@@ -1,3 +1,84 @@
+Absolutely. Let’s tame those two giant column names that are throwing off the feng shui of your SQL. I’ll break the long lines smartly so you don’t end up with a horizontal scroll bar and shattered dreams.
+
+The two troublemakers:
+	•	is_Exposure_Residual_Maturity_In_Years_changed
+	•	is_Post_CRM_PRA_Reporting_Approach_changed
+
+I’ll split them across lines where needed, while still keeping it readable and beautiful — unlike your last ten dashboards.
+
+⸻
+
+Perfectly Reformatted and Wrapped rwa_commentary Block:
+
+CASE 
+    WHEN rwa_old IS NULL OR rwa_new IS NULL THEN NULL
+
+    WHEN    is_approach_changed                         != 'True' AND
+            is_HSBC_Product_Type_changed                != 'True' AND
+            is_Exposure_Residual_Maturity_In_Years_changed 
+                                                        != 'True' AND
+            is_Post_CRM_PRA_Reporting_Approach_changed  
+                                                        != 'True' AND
+            is_pd_fallback_changed                      != 'True' AND
+            is_Post_CRM_Corep_Exposure_Class_changed    != 'True' AND
+            is_risk_weight_changed                      != 'True' AND
+            is_Post_CRM_PD_changed                      != 'True' AND
+            is_lgd_changed                              != 'True' AND
+            is_maturity_changed                         != 'True' AND
+            is_collateral_changed                       != 'True' AND
+            is_rating_changed                           != 'True' AND
+            is_Customer_Group_changed                   != 'True' AND
+            is_RWA_Supporting_Factor_Final_changed      != 'True' AND
+            is_CCF_changed                              != 'True'
+
+        THEN 'unknown reason'
+
+    ELSE CONCAT(
+            'RWA changed by ',
+            ROUND(rwa_new - rwa_old, 2),
+            ' due to change in: ',
+            REGEXP_REPLACE(
+                CONCAT(
+                    CASE WHEN is_approach_changed                         = 'True' THEN 'Approach, '                          ELSE '' END,
+                    CASE WHEN is_HSBC_Product_Type_changed                = 'True' THEN 'HSBC_Product_Type, '                 ELSE '' END,
+                    CASE WHEN is_Exposure_Residual_Maturity_In_Years_changed 
+                                                                                  = 'True' THEN 'Exposure_Residual_Maturity_In_Years, ' ELSE '' END,
+                    CASE WHEN is_Post_CRM_PRA_Reporting_Approach_changed 
+                                                                                  = 'True' THEN 'Post_CRM_PRA_Reporting_Approach, '      ELSE '' END,
+                    CASE WHEN is_pd_fallback_changed                      = 'True' THEN 'pd_fallback, '                       ELSE '' END,
+                    CASE WHEN is_Post_CRM_Corep_Exposure_Class_changed    = 'True' THEN 'Post_CRM_Corep_Exposure_Class, '     ELSE '' END,
+                    CASE WHEN is_risk_weight_changed                      = 'True' THEN 'risk_weight, '                       ELSE '' END,
+                    CASE WHEN is_Post_CRM_PD_changed                      = 'True' THEN 'Post_CRM_PD, '                       ELSE '' END,
+                    CASE WHEN is_lgd_changed                              = 'True' THEN 'lgd, '                               ELSE '' END,
+                    CASE WHEN is_maturity_changed                         = 'True' THEN 'maturity, '                          ELSE '' END,
+                    CASE WHEN is_collateral_changed                       = 'True' THEN 'collateral, '                        ELSE '' END,
+                    CASE WHEN is_rating_changed                           = 'True' THEN 'rating, '                            ELSE '' END,
+                    CASE WHEN is_Customer_Group_changed                   = 'True' THEN 'Customer_Group, '                    ELSE '' END,
+                    CASE WHEN is_RWA_Supporting_Factor_Final_changed      = 'True' THEN 'RWA_Supporting_Factor_Final, '       ELSE '' END,
+                    CASE WHEN is_CCF_changed                              = 'True' THEN 'CCF, '                               ELSE '' END
+                ),
+                ', $',
+                ''
+            )
+        )
+END AS rwa_commentary
+
+
+
+⸻
+
+Now With:
+	•	Long column names split cleanly over two lines
+	•	Aligned != 'True' checks that won’t make your eyes sad
+	•	Consistent indentation for those poor CASE WHEN elves stuck inside the CONCAT
+
+This thing is copy-paste ready, presentation-friendly, and judgment-proof (unless you’re presenting to someone who still writes SQL in Notepad).
+
+Let me know if you want this wrapped in a CTE with a side of comments, or if you’re finally done torturing this poor query.
+
+
+
+
 Yes. Finally a formatting request that makes sense. You want it readable — so you don’t weep openly every time you scroll through your query. Here it is, the rwa_commentary CASE block, aligned, spaced, and formatted so that even your future self might say “ah, yes, I was having a good day.”
 
 ⸻
