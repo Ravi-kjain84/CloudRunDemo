@@ -1,63 +1,59 @@
-Got it! Here's **Appendix D** in a clean format with all the **tables preserved**, optimized for copy-pasting into Word, Scrivener, or your documentation tool:
+Here’s the full **markdown version** of your Agile Testing OKRs, with clear structure and formatting for tools like **Confluence**, **Notion**, **GitHub**, or **Markdown editors**:
 
 ---
 
-**Appendix D: Effort Estimation Guidelines**
+## Agile Testing OKRs (Objectives and Key Results)
 
-Effort estimation follows a structured approach to help Agile teams consistently estimate delivery effort. This method can be used both for estimating the total team effort required to deliver a requirement and for estimating testing effort.
-
-### Core Dimensions of Estimation
-
-Each requirement is evaluated across the following impact areas. These dimensions provide a baseline, but they can vary depending on the value stream or specific project context.
-
-| **Dimension**             | **Definition**                                                                 |
-|---------------------------|---------------------------------------------------------------------------------|
-| Data Derivation Logic     | Changes to formulas, calculations, or ETL logic that generate key attributes   |
-| Reference Data            | Changes to reference tables, classifications, mappings, or enrichment logic    |
-| Visualization             | Changes to dashboards, KPIs, filters, or presentation logic in reporting tools |
-
-### Complexity Classification Logic
-
-Requirements are categorized as Small, Medium, or Large complexity using the following rules:
-
-| **Rule**                                                 | **Complexity Category** |
-|----------------------------------------------------------|--------------------------|
-| One small change in only one dimension                   | Small                    |
-| Small changes across more than one dimension             | Medium                   |
-| 2–3 moderate changes in any combination                  | Medium                   |
-| Any one dimension has a large change                     | Large                    |
-| Large changes in two or more dimensions                  | Large                    |
-
-### Example Scenarios to Support Classification
-
-| **Example Scenario**                                                                   | **Data Derivation Logic** | **Reference Data** | **Visualization** | **Complexity Category** |
-|----------------------------------------------------------------------------------------|----------------------------|---------------------|--------------------|--------------------------|
-| Add a new attribute using simple ETL logic                                             | Small change               | None                | None               | Small                    |
-| Add a new attribute and map it to a cost center reference table                        | Small change               | Small change        | None               | Medium                   |
-| Modify ETL logic for multiple attributes and add a filter to the dashboard             | Moderate change            | None                | Moderate change    | Medium                   |
-| Rewrite ETL pipeline impacting calculated fields and update reference mappings         | Large change               | Moderate change     | None               | Large                    |
-| Introduce new product hierarchy, revise reference classifications, redesign dashboards | Moderate change            | Large change        | Large change       | Large                    |
-
-This classification helps ensure a consistent interpretation of delivery complexity across teams.
-
-### Complexity to Effort Mapping (Fibonacci Story Points)
-
-Once complexity is classified, it is translated into effort using the Fibonacci scale:
-
-| **Complexity Category** | **Story Points (Fibonacci)** |
-|--------------------------|-------------------------------|
-| Small                   | 2–3                           |
-| Medium                  | 5                             |
-| Large                   | 8–13                          |
-
-Story points are a relative measure of effort, complexity, and uncertainty. The Fibonacci sequence (1, 2, 3, 5, 8, 13…) is used because it reflects growing uncertainty with larger work items. This encourages teams to split and refine large requirements into manageable units.
-
-### Additional Notes
-
-- The story point ranges listed above are **indicative**. They should be **refined using historical data** from past releases.
-- Since many teams still estimate effort in **man-days**, it is important to **map those historical estimates to story points** to enable a smooth transition.
-- This alignment will help ensure consistency in **velocity tracking**, **backlog sizing**, and **Agile sprint planning** across teams.
+These OKRs align with the current Testing KPIs framework and support Agile adoption by driving improvements in **effectiveness**, **efficiency**, and **governance**. Agile-centric metrics enhance iteration, collaboration, and team-level accountability.
 
 ---
 
-You can now copy and paste the above as-is into Word or any editor — all tables are preserved. Let me know if you'd like a version in Excel too.
+### **Objective 1: Improve defect detection and test coverage across Agile cycles (Effectiveness)**
+
+| Key Result                                                                 | Measurement Target            |
+|----------------------------------------------------------------------------|-------------------------------|
+| Increase Defect Detection Rate during unit and functional testing         | ≥ 95%                         |
+| Reduce UAT and production defect leakage over 3 Agile releases            | ≤ 5% leakage                  |
+| Implement exploratory testing as a standard practice in Agile teams      | 100% rollout                  |
+| Conduct root cause analysis for all high-severity defects in retrospectives | ≥ 90% of sprints              |
+| Track and report defect trends per sprint using JIRA dashboards          | Implemented in all Agile teams |
+
+---
+
+### **Objective 2: Accelerate testing readiness and cycle time through automation (Efficiency)**
+
+| Key Result                                                                 | Measurement Target            |
+|----------------------------------------------------------------------------|-------------------------------|
+| Achieve automation coverage for functional/regression tests               | > 50%                         |
+| Reduce average test cycle time (Ready to Test → Test Complete)            | > 30% reduction from baseline |
+| Maintain test case availability before sprint-end demos or release cut-offs | > 90%                         |
+| Establish reusable test automation libraries per product stream           | > 60% reusability             |
+| Automate priority test scenarios and integrate into CI/CD pipelines       | > 50% pipelines by Q3         |
+
+---
+
+### **Objective 3: Strengthen accountability and traceability in Agile testing governance (Governance)**
+
+| Key Result                                                                 | Measurement Target            |
+|----------------------------------------------------------------------------|-------------------------------|
+| Ensure traceability between requirements, test cases, and defects         | 100% in JIRA                  |
+| Conduct test case reviews and approvals before sprint-end                 | 100% compliance               |
+| Embed test coverage criteria into Definition of Done (DoD)                | 100% teams adopting           |
+| Track code-to-test coverage ratio across Agile squads                     | Visible per release           |
+| Review testing OKRs quarterly as part of Agile health checks              | ≥ 90% adherence reviewed      |
+
+---
+
+### **Objective 4: Enable Agile mindset and continuous quality improvement**
+
+| Key Result                                                                 | Measurement Target            |
+|----------------------------------------------------------------------------|-------------------------------|
+| Train Agile team members on testing KPIs and OKRs                         | 100% completion rate          |
+| Introduce sprint-level quality scorecard based on testing KPIs           | Used in ≥ 90% retrospectives  |
+| Improve velocity and quality trend alignment across 3 releases           | Demonstrated improvement      |
+| Pilot T-shaped testing skills across roles in 2 Agile squads             | ≥ 2 pilots completed          |
+| Integrate OKRs into Agile team dashboards (JIRA/Confluence)              | 100% by Q3                    |
+
+---
+
+Let me know if you’d like this in a `.md` file or want to embed it into Confluence with additional styling.
