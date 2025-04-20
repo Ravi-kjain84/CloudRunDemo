@@ -1,4 +1,96 @@
 
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+
+# Step 1: Merge RequirementID into test_evidence dictionary
+def merge_requirement_id(test_evidence, test_cases_df):
+    tc_to_req_map = test_cases_df.set_index('TestCaseID')['RequirementID'].to_dict()
+    for tc_id in test_evidence:
+        test_evidence[tc_id]['RequirementID'] = tc_to_req_map.get(tc_id, 'UNKNOWN')
+    return test_evidence
+
+# Step 2: Write evidence of one test case to a worksheet
+def write_test_case_block(ws, test_case_id, evidence):
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 60
+
+    # Test Case Title
+    ws.append([f"Test Case: {test_case_id}"])
+    ws.merge_cells(start_row=ws.max_row, start_column=1, end_row=ws.max_row, end_column=2)
+    header_cell = ws.cell(row=ws.max_row, column=1)
+    header_cell.font = Font(bold=True, color="FFFFFF")
+    header_cell.fill = PatternFill("solid", fgColor="4F81BD")
+    header_cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    # Sections like 'Test Case Information', 'SQL Logic'
+    for section in ['Test Case Information', 'SQL Logic']:
+        if section in evidence:
+            ws.append([section])
+            for key, value in evidence[section].items():
+                ws.append([key, value])
+                for col in range(1, 3):
+                    cell = ws.cell(row=ws.max_row, column=col)
+                    cell.alignment = Alignment(horizontal="left", vertical="center")
+                    if col == 1:
+                        cell.font = Font(bold=True)
+            ws.append([])  # One empty line after section
+
+    # Two empty rows between test cases
+    ws.append([])
+    ws.append([])
+
+# Step 3: Generate workbook with one sheet per Test Case ID
+def write_testcase_level_workbook(test_evidence):
+    wb = Workbook()
+    for test_case_id, evidence in test_evidence.items():
+        ws = wb.create_sheet(title=str(test_case_id))
+        write_test_case_block(ws, test_case_id, evidence)
+    if 'Sheet' in wb.sheetnames:
+        del wb['Sheet']
+    wb.save("TestEvidence_By_TestCaseID.xlsx")
+
+# Step 4: Generate workbook with one sheet per Requirement ID
+def write_requirement_level_workbook(test_evidence):
+    wb = Workbook()
+    req_map = {}
+    for test_case_id, evidence in test_evidence.items():
+        req_id = evidence['RequirementID']
+        if req_id not in req_map:
+            req_map[req_id] = wb.create_sheet(title=req_id)
+        ws = req_map[req_id]
+        write_test_case_block(ws, test_case_id, evidence)
+    if 'Sheet' in wb.sheetnames:
+        del wb['Sheet']
+    wb.save("TestEvidence_By_RequirementID.xlsx")
+
+# === Example Usage ===
+
+# Sample DataFrame (replace with your CSV or source)
+test_cases_df = pd.DataFrame({
+    'TestCaseID': ['TC01', 'TC02', 'TC03', 'TC04'],
+    'RequirementID': ['REQ1', 'REQ1', 'REQ2', 'REQ2']
+})
+
+# Sample evidence dictionary (structure to be matched to real data)
+test_evidence = {
+    'TC01': {'Test Case Information': {'Step': 'Login', 'Expected': 'Dashboard'},
+             'SQL Logic': {'Query': 'SELECT * FROM users'}},
+    'TC02': {'Test Case Information': {'Step': 'Logout', 'Expected': 'Login Page'}},
+    'TC03': {'Test Case Information': {'Step': 'Search', 'Expected': 'Results'}},
+    'TC04': {'Test Case Information': {'Step': 'Profile Update', 'Expected': 'Saved'}}
+}
+
+# Merge Requirement ID into evidence and generate both workbooks
+test_evidence = merge_requirement_id(test_evidence, test_cases_df)
+write_testcase_level_workbook(test_evidence)
+write_requirement_level_workbook(test_evidence)
+
+
+
+
+
+
 {
   "version": "0.2.0",
   "configurations": [
