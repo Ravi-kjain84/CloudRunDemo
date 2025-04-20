@@ -1,3 +1,32 @@
+{
+    "security.workspace.trust.untrustedFiles": "open",
+    "python.defaultInterpreterPath": "D:\\virtual_env\\Projects\\PythonEnv\\myenv\\Scripts\\python.exe",
+    "python.terminal.activateEnvironment": true,
+    "git.autofetch": true,
+    "redhat.telemetry.enabled": true,
+    "git.enableSmartCommit": true,
+    "git.confirmSync": false,
+    "window.zoomLevel": -1,
+    "cdx.dude.outat1_project": "nifty-canyon-190317",
+    "editor.minimap.enabled": false,
+    "interactiveWindow.executeWithShiftEnter": true,
+    "jupyter.interactiveWindow.creationMode": "perFile",
+    "workbench.editorAssociations": {
+        "file/**/*.csv": "jupyter-data-wrangler",
+        "file/**/*.xlsx": "jupyter-data-wrangler"
+    },
+    "datawrangler.startInEditModeForNotebookEntrypoints": true,
+    "workbench.colorTheme": "Visual Studio Light",
+    "explorer.confirmDragAndDrop": false,
+    "python.createEnvironment.trigger": "off",
+    "explorer.confirmDelete": false,
+    "git.openRepositoryInParentFolders": "never"
+}
+
+
+----
+
+
 Here’s a restructured Testing Strategy Guideline section incorporating all three phases—aligned with your intent and written in a clear, professional tone:
 
 ⸻
