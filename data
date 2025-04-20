@@ -1,3 +1,19 @@
+
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Run File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal"
+    }
+  ]
+}
+
+
+
 {
     "security.workspace.trust.untrustedFiles": "open",
     "python.defaultInterpreterPath": "D:\\virtual_env\\Projects\\PythonEnv\\myenv\\Scripts\\python.exe",
