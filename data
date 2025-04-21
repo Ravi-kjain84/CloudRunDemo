@@ -1,4 +1,33 @@
 
+
+Absolutely — we can avoid terms like “role alignment” and keep the language more neutral and task-focused. Here’s the revised version with a lighter tone:
+
+---
+
+**Subject:** Quick Confirmation Needed – Business Tester / QA Lead Mapping
+
+Dear [Leads/Team],
+
+I’m currently reviewing the list of individuals marked as **Business Testers** or **QA Leads** for upcoming training and enablement activities under the Testing CoE.
+
+Please take a moment to:
+- Check the Excel sheet linked below for your team members,
+- Confirm if the listed role looks correct,
+- Update the “Role Confirmation” column if any change is needed.
+
+📄 [**Link to Excel File**]
+
+Request you to complete this by **tomorrow**, so we can proceed with assigning the relevant training.
+
+Let me know if you have any questions.
+
+Thanks,  
+**Ravi Jain**  
+Testing CoE Lead
+
+---
+
+Let me know if you want this tailored for broader audience or adjusted for a reply template.
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
