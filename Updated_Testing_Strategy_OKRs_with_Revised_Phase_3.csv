@@ -1,0 +1,19 @@
+Objective,Key Result,Measurable,Phase
+Improve defect detection and test coverage across Agile cycles,Ensure Test case coverage as per Testing CoE Guidelines,100% adoption,Phase 1
+Improve defect detection and test coverage across Agile cycles,Increase Defect Detection Rate during unit and functional testing,≥ 95%,Phase 1
+Improve defect detection and test coverage across Agile cycles,Conduct root cause analysis for all high-severity defects in retrospectives,≥ 90% of sprints,Phase 1
+Accelerate testing readiness and cycle time through automation (Efficiency),Achieve automation coverage for functional/regression tests,> 50%,Phase 1
+Accelerate testing readiness and cycle time through automation (Efficiency),Implement Data Guard for Regression dashboards,100% adoption rate,Phase 1
+Accelerate testing readiness and cycle time through automation (Efficiency),Maintain test case availability before sprint start,> 90%,Phase 1
+Accelerate testing readiness and cycle time through automation (Efficiency),Establish reusable test automation libraries,> 40% reusability,Phase 1
+Strengthen accountability and traceability in Agile testing governance (Governance),"Ensure traceability between requirements, test cases, and defects",100% in JIRA,Phase 1
+Strengthen accountability and traceability in Agile testing governance (Governance),Conduct test case reviews and approvals before sprint-end,100% compliance,Phase 1
+Strengthen accountability and traceability in Agile testing governance (Governance),Embed test coverage criteria into Definition of Done (DoD),100% teams adopting,Phase 1
+Improve defect detection and test coverage across Agile cycles,Track and report defect trends per sprint using JIRA dashboards,Implemented in all Agile teams,Phase 2
+Enable Agile mindset and continuous quality improvement (Agile mindset),Train Business Testers on DAP and Agile basic trainings,100% completion rate,Phase 2
+Enable Agile mindset and continuous quality improvement (Agile mindset),Integrate OKRs into Agile team dashboards (JIRA/Confluence),100%,Phase 2
+Enable Agile mindset and continuous quality improvement (Agile mindset),Ensure Retrospective / Lessons Learnt discussions,100%,Phase 2
+Enable intelligent test design through GenAI,Auto-generate test cases from requirement prompts using GenAI,Pilot completed with measurable output,Phase 3
+Enable intelligent test design through GenAI,Use data lineage to refine test scope recommendations,Applied in 2+ use cases,Phase 3
+Enable intelligent test design through GenAI,Align test scenarios with business context for better coverage,Feedback loop validated by business teams,Phase 3
+Enable intelligent test design through GenAI,Generate downstream system test scenarios from process maps using GenAI,Incorporated in test planning for selected flows,Phase 3
