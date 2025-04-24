@@ -1,17 +1,41 @@
+import pandas as pd
 import win32com.client as win32
 
-# CONFIG
-TARGET_FOLDER_NAME = "Python Drafts"  # Must already exist in your Outlook
+# CONFIGURATION
+EXCEL_FILE = r"C:\Path\To\Your\File.xlsx"
+TARGET_FOLDER_NAME = "Python Drafts"
+BODY_TEMPLATE = """Dear {Name},
 
+{MessageBody}
+
+Best regards,
+Your Automation Bot
+"""
+
+# STEP 1: Load Excel and normalize column names
+try:
+    df = pd.read_excel(EXCEL_FILE)
+    df.columns = df.columns.str.strip().str.lower()
+except Exception as e:
+    print(f"[ERROR] Failed to read Excel file: {e}")
+    exit()
+
+# Validate required columns
+required_columns = ['email', 'name', 'messagebody']
+if not all(col in df.columns for col in required_columns):
+    print(f"[ERROR] Excel must contain columns: {required_columns}")
+    exit()
+
+# STEP 2: Initialize Outlook
 try:
     outlook = win32.Dispatch("Outlook.Application")
     namespace = outlook.GetNamespace("MAPI")
 
-    # Get the default mailbox
-    inbox = namespace.GetDefaultFolder(6)  # 6 = Inbox
+    # Get the root folder (usually top-level mailbox)
+    inbox = namespace.GetDefaultFolder(6)
     parent_folder = inbox.Parent
 
-    # Search for the target folder under the root
+    # Locate target folder
     target_folder = None
     for folder in parent_folder.Folders:
         if folder.Name == TARGET_FOLDER_NAME:
@@ -19,20 +43,29 @@ try:
             break
 
     if not target_folder:
-        raise Exception(f"Folder '{TARGET_FOLDER_NAME}' not found in your mailbox.")
-
-    # Create the email
-    mail = outlook.CreateItem(0)
-    mail.To = "your.email@yourdomain.com"
-    mail.Subject = "Draft in Custom Folder"
-    mail.Body = "This draft was saved to a specific folder via Python."
-
-    # Save to Drafts first
-    mail.Save()
-
-    # Move the draft to the specific folder
-    mail.Move(target_folder)
-    print(f"Email saved to folder: {TARGET_FOLDER_NAME}")
+        raise Exception(f"Folder '{TARGET_FOLDER_NAME}' not found.")
 
 except Exception as e:
-    print(f"[ERROR] {e}")
+    print(f"[ERROR] Outlook setup failed: {e}")
+    exit()
+
+# STEP 3: Create and move emails to custom folder
+for index, row in df.iterrows():
+    try:
+        to_email = row['email']
+        name = row['name']
+        body = row['messagebody']
+
+        mail = outlook.CreateItem(0)
+        mail.To = to_email
+        mail.Subject = "Personalized Message via Python"
+        mail.Body = BODY_TEMPLATE.format(Name=name, MessageBody=body)
+        mail.Save()
+
+        # Move to the target folder
+        mail.Move(target_folder)
+
+        print(f"[OK] Draft for {to_email} saved in '{TARGET_FOLDER_NAME}'")
+
+    except Exception as e:
+        print(f"[ERROR] Failed to process row {index + 1}: {e}")
