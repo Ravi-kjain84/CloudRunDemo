@@ -1,18 +1,38 @@
 import win32com.client as win32
 
+# CONFIG
+TARGET_FOLDER_NAME = "Python Drafts"  # Must already exist in your Outlook
+
 try:
-    # Start Outlook
-    outlook = win32.Dispatch('outlook.application')
+    outlook = win32.Dispatch("Outlook.Application")
+    namespace = outlook.GetNamespace("MAPI")
+
+    # Get the default mailbox
+    inbox = namespace.GetDefaultFolder(6)  # 6 = Inbox
+    parent_folder = inbox.Parent
+
+    # Search for the target folder under the root
+    target_folder = None
+    for folder in parent_folder.Folders:
+        if folder.Name == TARGET_FOLDER_NAME:
+            target_folder = folder
+            break
+
+    if not target_folder:
+        raise Exception(f"Folder '{TARGET_FOLDER_NAME}' not found in your mailbox.")
+
+    # Create the email
     mail = outlook.CreateItem(0)
+    mail.To = "your.email@yourdomain.com"
+    mail.Subject = "Draft in Custom Folder"
+    mail.Body = "This draft was saved to a specific folder via Python."
 
-    # Compose test email
-    mail.To = "your.email@yourdomain.com"  # Replace with your email
-    mail.Subject = "Test Email from Python"
-    mail.Body = "This is a test email sent from a Python script using your Outlook account."
+    # Save to Drafts first
+    mail.Save()
 
-    # Send the email
-    mail.Send()
-    print("Test email sent successfully.")
+    # Move the draft to the specific folder
+    mail.Move(target_folder)
+    print(f"Email saved to folder: {TARGET_FOLDER_NAME}")
 
 except Exception as e:
-    print(f"Failed to send test email: {e}")
+    print(f"[ERROR] {e}")
