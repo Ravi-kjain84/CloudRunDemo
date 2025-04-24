@@ -1,10 +1,51 @@
-qqq
-import json
+import pandas as pd
+import win32com.client as win32
 
-try:
-    data = json.loads(raw_json)
-except json.JSONDecodeError as e:
-    print("JSON Error:", e)
-    print("Error at char:", e.pos)
-    print(raw_json[max(0, e.pos - 50): e.pos + 50])
-    print(" " * 50 + "^")
+# --- CONFIGURATION ---
+EXCEL_FILE = r"C:\Path\To\Your\File.xlsx"
+SENDER_EMAIL = "yourmailbox@yourcompany.com"  # Set this if sending from a shared mailbox, else leave blank
+SUBJECT = "Your Customized Subject"
+BODY_TEMPLATE = """Dear {Name},
+
+{MessageBody}
+
+Best regards,
+Your Team Name"""
+
+# --- STEP 1: READ EXCEL DATA ---
+df = pd.read_excel(EXCEL_FILE)
+
+# --- STEP 2: INITIALIZE OUTLOOK ---
+outlook = win32.Dispatch('outlook.application')
+namespace = outlook.GetNamespace("MAPI")
+
+# Optional: Use specific sender mailbox
+if SENDER_EMAIL:
+    sender_account = None
+    for account in namespace.Accounts:
+        if account.SmtpAddress.lower() == SENDER_EMAIL.lower():
+            sender_account = account
+            break
+    if not sender_account:
+        raise Exception(f"Sender mailbox {SENDER_EMAIL} not found.")
+
+# --- STEP 3: LOOP AND SEND EMAILS ---
+for index, row in df.iterrows():
+    try:
+        mail = outlook.CreateItem(0)
+        mail.To = row['Email']
+        mail.Subject = SUBJECT
+        mail.Body = BODY_TEMPLATE.format(Name=row['Name'], MessageBody=row['MessageBody'])
+
+        if SENDER_EMAIL:
+            mail._oleobj_.Invoke(*(64209, 0, 8, 0, sender_account))  # Set 'SendUsingAccount'
+
+        mail.Send()
+        print(f"Email sent to: {row['Email']}")
+    except Exception as e:
+        print(f"Failed to send to {row['Email']}: {str(e)}")
+
+
+Email | Name | MessageBody
+abc@company.com | Alice | Hope you are doing well today.
+xyz@company.com | Bob | Just a quick follow-up on...
