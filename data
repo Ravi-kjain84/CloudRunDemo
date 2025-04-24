@@ -1,18 +1,20 @@
 import pandas as pd
 import win32com.client as win32
 
-# CONFIGURATION
+# --- CONFIGURATION ---
 EXCEL_FILE = r"C:\Path\To\Your\File.xlsx"
 TARGET_FOLDER_NAME = "Python Drafts"
+
+# --- EMAIL BODY TEMPLATE ---
 BODY_TEMPLATE = """Dear {Name},
 
 {MessageBody}
 
-Best regards,
+Best regards,  
 Your Automation Bot
 """
 
-# STEP 1: Load Excel and normalize column names
+# --- STEP 1: Load Excel and Normalize Headers ---
 try:
     df = pd.read_excel(EXCEL_FILE)
     df.columns = df.columns.str.strip().str.lower()
@@ -20,22 +22,19 @@ except Exception as e:
     print(f"[ERROR] Failed to read Excel file: {e}")
     exit()
 
-# Validate required columns
-required_columns = ['email', 'name', 'messagebody']
+# --- Validate Required Columns ---
+required_columns = ['email', 'name', 'messagebody', 'cc', 'subject']
 if not all(col in df.columns for col in required_columns):
     print(f"[ERROR] Excel must contain columns: {required_columns}")
     exit()
 
-# STEP 2: Initialize Outlook
+# --- STEP 2: Initialize Outlook and Locate Target Folder ---
 try:
     outlook = win32.Dispatch("Outlook.Application")
     namespace = outlook.GetNamespace("MAPI")
-
-    # Get the root folder (usually top-level mailbox)
     inbox = namespace.GetDefaultFolder(6)
     parent_folder = inbox.Parent
 
-    # Locate target folder
     target_folder = None
     for folder in parent_folder.Folders:
         if folder.Name == TARGET_FOLDER_NAME:
@@ -49,20 +48,24 @@ except Exception as e:
     print(f"[ERROR] Outlook setup failed: {e}")
     exit()
 
-# STEP 3: Create and move emails to custom folder
+# --- STEP 3: Create and Move Emails to Custom Folder ---
 for index, row in df.iterrows():
     try:
         to_email = row['email']
+        cc_email = row['cc']
+        subject = row['subject']
         name = row['name']
-        body = row['messagebody']
+        message_body = row['messagebody']
 
+        # Create mail and fill fields
         mail = outlook.CreateItem(0)
         mail.To = to_email
-        mail.Subject = "Personalized Message via Python"
-        mail.Body = BODY_TEMPLATE.format(Name=name, MessageBody=body)
-        mail.Save()
+        mail.CC = cc_email
+        mail.Subject = subject
+        mail.Body = BODY_TEMPLATE.format(Name=name, MessageBody=message_body)
 
-        # Move to the target folder
+        # Save and move to folder
+        mail.Save()
         mail.Move(target_folder)
 
         print(f"[OK] Draft for {to_email} saved in '{TARGET_FOLDER_NAME}'")
