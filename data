@@ -1,1 +1,10 @@
 qqq
+import json
+
+try:
+    data = json.loads(raw_json)
+except json.JSONDecodeError as e:
+    print("JSON Error:", e)
+    print("Error at char:", e.pos)
+    print(raw_json[max(0, e.pos - 50): e.pos + 50])
+    print(" " * 50 + "^")
