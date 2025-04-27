@@ -1,24 +1,30 @@
-outlook = win32.Dispatch("Outlook.Application")
-namespace = outlook.GetNamespace("MAPI")
+let
+  // load & type
+  Source      = Excel.Workbook(File.Contents("C:\Path\RawHierarchy.xlsx"), null, true){[Name="EmployeeHierarchy"]}[Data],
+  Promoted    = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+  Typed       = Table.TransformColumnTypes(Promoted, {{"EmployeeID", type text}, {"ManagerID", type text}}),
 
-# Pick Testing CoE mailbox
-recipient = namespace.CreateRecipient("Testing CoE")  # Name exactly as shown in Outlook
-recipient.Resolve()
+  // recursive function to fetch all descendants
+  GetDescendants = (mgr as text) as list =>
+    let
+      Direct  = Table.SelectRows(Typed, each [ManagerID]=mgr)[EmployeeID],
+      Indir   = List.Combine(List.Transform(Direct, each @GetDescendants(_))),
+      Combined= List.Distinct(List.Combine({Direct, Indir}))
+    in
+      Combined,
 
-if not recipient.Resolved:
-    raise Exception("[ERROR] Could not resolve Testing CoE mailbox.")
-
-# Get the Inbox of Testing CoE
-inbox = namespace.GetSharedDefaultFolder(recipient, 6)  # 6 = Inbox
-
-parent_folder = inbox.Parent  # Parent folder now is Testing CoE mailbox
-
-# Now find the target folder inside Testing CoE mailbox
-target_folder = None
-for folder in parent_folder.Folders:
-    if folder.Name == TARGET_FOLDER_NAME:
-        target_folder = folder
-        break
-
-if not target_folder:
-    raise Exception(f"[ERROR] Folder '{TARGET_FOLDER_NAME}' not found in Testing CoE mailbox.")
+  // build summary table
+  DistinctMgrs = List.RemoveNulls(List.Distinct(Typed[ManagerID])),
+  Summaries   = List.Transform(
+    DistinctMgrs,
+    (mgr) => [
+      ManagerID        = mgr,
+      DirectReportees  = List.Count(Table.SelectRows(Typed, each [ManagerID]=mgr)[EmployeeID]),
+      TotalReportees   = List.Count(GetDescendants(mgr)),
+      IndirectReportees= List.Count(GetDescendants(mgr)) 
+                        - List.Count(Table.SelectRows(Typed, each [ManagerID]=mgr)[EmployeeID])
+    ]
+  ),
+  ResultTable = Table.FromRecords(Summaries)
+in
+  ResultTable
