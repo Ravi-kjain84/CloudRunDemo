@@ -1,41 +1,25 @@
-let
-    Source = Testing_QA_Resources_list,
-    Shifted = Table.AddColumn(Source, "Shifted", each
-        let
-            Level3 = [Manager_Name_L3],
-            Level2 = [Manager_Name_L2],
-            Level1 = [Manager_Name_L1],
-            Employee = [Employee_Name],
-            NewLevel3 = if Level3 <> null then Level3 else if Level2 <> null then Level2 else if Level1 <> null then Level1 else Employee,
-            NewLevel2 = if Level3 <> null then Level2 else if Level2 <> null then Level1 else Employee,
-            NewLevel1 = if Level3 <> null then Level1 else Employee
-        in
-            [Manager_Level_1 = NewLevel1, Manager_Level_2 = NewLevel2, Manager_Level_3 = NewLevel3]
-    ),
-    Expanded = Table.ExpandRecordColumn(Shifted, "Shifted", {"Manager_Level_1", "Manager_Level_2", "Manager_Level_3"}),
-    
-    // Create Management Path
-    AddPathColumn = Table.AddColumn(Expanded, "Management_Path", each
-        Text.Combine(
-            List.RemoveNulls({
-                [Employee_Name],
-                [Manager_Level_1],
-                [Manager_Level_2],
-                [Manager_Level_3]
-            }), 
-            " → "
-        )
-    ),
+import pandas as pd
 
-    // Create Hierarchy Level
-    AddHierarchyLevel = Table.AddColumn(AddPathColumn, "Hierarchy_Level", each
-        List.Count(
-            List.RemoveNulls({
-                [Manager_Level_1],
-                [Manager_Level_2],
-                [Manager_Level_3]
-            })
-        )
-    )
-in
-    AddHierarchyLevel
+# Load your data
+df = pd.read_excel('your_file.xlsx')  # Adjust file name
+
+# Build Employee → Manager Map
+emp_mgr_map = dict(zip(df['Employee_Name'], df['Manager_Name_L1']))
+
+# Recursive function to find full path
+def get_full_path(employee):
+    path = [employee]
+    while employee in emp_mgr_map and pd.notna(emp_mgr_map[employee]) and emp_mgr_map[employee] != employee:
+        manager = emp_mgr_map[employee]
+        path.append(manager)
+        employee = manager
+    return " → ".join(path)
+
+# Apply to all employees
+df['Management_Path'] = df['Employee_Name'].apply(get_full_path)
+
+# Count hierarchy level
+df['Hierarchy_Level'] = df['Management_Path'].str.count('→')
+
+# Save
+df.to_excel('output_full_hierarchy.xlsx', index=False)
