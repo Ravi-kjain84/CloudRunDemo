@@ -1,30 +1,35 @@
 let
-  // load & type
-  Source      = Excel.Workbook(File.Contents("C:\Path\RawHierarchy.xlsx"), null, true){[Name="EmployeeHierarchy"]}[Data],
-  Promoted    = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
-  Typed       = Table.TransformColumnTypes(Promoted, {{"EmployeeID", type text}, {"ManagerID", type text}}),
+    // Step 1: Load the data
+    Source = Testing_QA_Resources_list,
+    #"Selected Columns" = Table.SelectColumns(Source, {"Employee ID", "Employee Manager Id"}),
+    #"Removed Duplicates" = Table.Distinct(#"Selected Columns"),
+    #"Renamed Columns" = Table.RenameColumns(#"Removed Duplicates", {{"Employee ID", "EmployeeID"}, {"Employee Manager Id", "ManagerID"}}),
 
-  // recursive function to fetch all descendants
-  GetDescendants = (mgr as text) as list =>
-    let
-      Direct  = Table.SelectRows(Typed, each [ManagerID]=mgr)[EmployeeID],
-      Indir   = List.Combine(List.Transform(Direct, each @GetDescendants(_))),
-      Combined= List.Distinct(List.Combine({Direct, Indir}))
-    in
-      Combined,
+    // Step 2: Define a recursive function to get all reportees
+    GetAllReportees = (manager as text) as list =>
+        let
+            DirectReports = Table.SelectRows(#"Renamed Columns", each [ManagerID] = manager)[EmployeeID],
+            IndirectReports = List.Combine(List.Transform(DirectReports, each @GetAllReportees(_))),
+            Combined = List.Distinct(List.Combine({DirectReports, IndirectReports}))
+        in
+            Combined,
 
-  // build summary table
-  DistinctMgrs = List.RemoveNulls(List.Distinct(Typed[ManagerID])),
-  Summaries   = List.Transform(
-    DistinctMgrs,
-    (mgr) => [
-      ManagerID        = mgr,
-      DirectReportees  = List.Count(Table.SelectRows(Typed, each [ManagerID]=mgr)[EmployeeID]),
-      TotalReportees   = List.Count(GetDescendants(mgr)),
-      IndirectReportees= List.Count(GetDescendants(mgr)) 
-                        - List.Count(Table.SelectRows(Typed, each [ManagerID]=mgr)[EmployeeID])
-    ]
-  ),
-  ResultTable = Table.FromRecords(Summaries)
+    // Step 3: Prepare distinct list of managers
+    DistinctManagers = List.RemoveNulls(List.Distinct(#"Renamed Columns"[ManagerID])),
+
+    // Step 4: Create output table
+    ReporteeSummary = List.Transform(
+        DistinctManagers,
+        each [
+            ManagerID = _,
+            DirectReportees = List.Count(Table.SelectRows(#"Renamed Columns", each [ManagerID] = _)[EmployeeID]),
+            TotalReportees = List.Count(GetAllReportees(_)),
+            IndirectReportees = List.Count(GetAllReportees(_)) - List.Count(Table.SelectRows(#"Renamed Columns", each [ManagerID] = _)[EmployeeID])
+        ]
+    ),
+    
+    // Step 5: Convert to table
+    OutputTable = Table.FromRecords(ReporteeSummary)
+
 in
-  ResultTable
+    OutputTable
