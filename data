@@ -1,35 +1,41 @@
 let
-    // Step 1: Load the data
     Source = Testing_QA_Resources_list,
-    #"Selected Columns" = Table.SelectColumns(Source, {"Employee ID", "Employee Manager Id"}),
-    #"Removed Duplicates" = Table.Distinct(#"Selected Columns"),
-    #"Renamed Columns" = Table.RenameColumns(#"Removed Duplicates", {{"Employee ID", "EmployeeID"}, {"Employee Manager Id", "ManagerID"}}),
-
-    // Step 2: Define a recursive function to get all reportees
-    GetAllReportees = (manager as text) as list =>
+    Shifted = Table.AddColumn(Source, "Shifted", each
         let
-            DirectReports = Table.SelectRows(#"Renamed Columns", each [ManagerID] = manager)[EmployeeID],
-            IndirectReports = List.Combine(List.Transform(DirectReports, each @GetAllReportees(_))),
-            Combined = List.Distinct(List.Combine({DirectReports, IndirectReports}))
+            Level3 = [Manager_Name_L3],
+            Level2 = [Manager_Name_L2],
+            Level1 = [Manager_Name_L1],
+            Employee = [Employee_Name],
+            NewLevel3 = if Level3 <> null then Level3 else if Level2 <> null then Level2 else if Level1 <> null then Level1 else Employee,
+            NewLevel2 = if Level3 <> null then Level2 else if Level2 <> null then Level1 else Employee,
+            NewLevel1 = if Level3 <> null then Level1 else Employee
         in
-            Combined,
-
-    // Step 3: Prepare distinct list of managers
-    DistinctManagers = List.RemoveNulls(List.Distinct(#"Renamed Columns"[ManagerID])),
-
-    // Step 4: Create output table
-    ReporteeSummary = List.Transform(
-        DistinctManagers,
-        each [
-            ManagerID = _,
-            DirectReportees = List.Count(Table.SelectRows(#"Renamed Columns", each [ManagerID] = _)[EmployeeID]),
-            TotalReportees = List.Count(GetAllReportees(_)),
-            IndirectReportees = List.Count(GetAllReportees(_)) - List.Count(Table.SelectRows(#"Renamed Columns", each [ManagerID] = _)[EmployeeID])
-        ]
+            [Manager_Level_1 = NewLevel1, Manager_Level_2 = NewLevel2, Manager_Level_3 = NewLevel3]
     ),
+    Expanded = Table.ExpandRecordColumn(Shifted, "Shifted", {"Manager_Level_1", "Manager_Level_2", "Manager_Level_3"}),
     
-    // Step 5: Convert to table
-    OutputTable = Table.FromRecords(ReporteeSummary)
+    // Create Management Path
+    AddPathColumn = Table.AddColumn(Expanded, "Management_Path", each
+        Text.Combine(
+            List.RemoveNulls({
+                [Employee_Name],
+                [Manager_Level_1],
+                [Manager_Level_2],
+                [Manager_Level_3]
+            }), 
+            " → "
+        )
+    ),
 
+    // Create Hierarchy Level
+    AddHierarchyLevel = Table.AddColumn(AddPathColumn, "Hierarchy_Level", each
+        List.Count(
+            List.RemoveNulls({
+                [Manager_Level_1],
+                [Manager_Level_2],
+                [Manager_Level_3]
+            })
+        )
+    )
 in
-    OutputTable
+    AddHierarchyLevel
