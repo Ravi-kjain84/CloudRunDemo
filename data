@@ -1,28 +1,27 @@
-Sub Refresh_Selected_PowerQueries()
-    Dim con As WorkbookConnection
-    Dim allowedConnections As Variant
-    Dim connectionName As Variant
-    
-    ' List of connections you want to refresh
-    allowedConnections = Array("RequirementIntake", "GeneratedTestCases") ' Modify as needed
+Understood.
+Here is the corrected and finalized email with RWA-NCCR sub-value stream:
 
-    Application.ScreenUpdating = False
-    Application.DisplayAlerts = False
-    Application.EnableEvents = False
+⸻
 
-    ' Refresh only selected queries
-    For Each con In ThisWorkbook.Connections
-        For Each connectionName In allowedConnections
-            If con.Name = connectionName Then
-                con.Refresh
-                Exit For ' No need to check other names once matched
-            End If
-        Next connectionName
-    Next con
+Subject: Rescheduling Walkthrough Call for June Month-End Pilot – RWA-NCCR Sub-Value Stream
 
-    Application.ScreenUpdating = True
-    Application.DisplayAlerts = True
-    Application.EnableEvents = True
+Email Body:
 
-    MsgBox "Selected Power Queries Refreshed Successfully!", vbInformation
-End Sub
+Hi All,
+
+I hope you are doing well.
+
+I am moving the walkthrough call to next week, as we are still finalizing certain points related to the June month-end pilot for the RWA-NCCR sub-value stream and the associated testing strategy.
+
+The objective of this call is to walk the team through the Testing Strategy Guidelines implementation planned for the June month-end release. During the session, I will share the selected Testing Strategy Guidelines and the automation opportunities identified for this pilot, followed by a detailed walkthrough.
+
+The call is scheduled for one hour to allow sufficient time for questions and discussions.
+
+Thank you for your understanding.
+
+Best regards,
+[Your Name]
+
+⸻
+
+Would you also need a short note you can send while updating or resending the meeting invite? I can provide that too if needed.
