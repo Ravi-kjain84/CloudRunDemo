@@ -1,28 +1,68 @@
-
-Sub Refresh_All_PowerQueries()
-    Dim ws As Worksheet
-    Dim qt As QueryTable
-    Dim lo As ListObject
-    Dim cn As WorkbookConnection
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim OldVal As String
+    Dim NewVal As String
+    Dim Separator As String
+    Dim Items As Variant
+    Dim Item As Variant
+    Dim NewText As String
+    Dim Found As Boolean
+    Separator = "; "
     
-    On Error Resume Next
-    
-    ' Refresh all Workbook Connections (Power Query connections)
-    For Each cn In ThisWorkbook.Connections
-        If cn.Name Like "*Query*" Then
-            cn.Refresh
+    ' Specify the range where this behavior should apply
+    If Not Intersect(Target, Range("C4:C100")) Is Nothing Then
+        On Error GoTo SafeExit
+        Application.EnableEvents = False
+        
+        ' Store the new value selected
+        NewVal = Target.Value
+        
+        ' Undo the change to get the previous cell content
+        Application.Undo
+        OldVal = Target.Value
+        
+        ' Split existing values
+        If OldVal <> "" Then
+            Items = Split(OldVal, Separator)
+        Else
+            Items = Array()
         End If
-    Next cn
-    
-    ' Refresh all Table Queries (if any)
-    For Each ws In ThisWorkbook.Worksheets
-        For Each lo In ws.ListObjects
-            If lo.QueryTable Is Nothing Then
-            Else
-                lo.QueryTable.Refresh BackgroundQuery:=False
+        
+        ' Check if the selected item is already there
+        Found = False
+        For Each Item In Items
+            If Trim(Item) = Trim(NewVal) Then
+                Found = True
+                Exit For
             End If
-        Next lo
-    Next ws
-    
-    On Error GoTo 0
+        Next Item
+        
+        ' If found, remove it; if not found, add it
+        If Found Then
+            ' Remove the item
+            NewText = ""
+            For Each Item In Items
+                If Trim(Item) <> Trim(NewVal) Then
+                    If NewText = "" Then
+                        NewText = Item
+                    Else
+                        NewText = NewText & Separator & Item
+                    End If
+                End If
+            Next Item
+        Else
+            ' Add the new item
+            If OldVal = "" Then
+                NewText = NewVal
+            Else
+                NewText = OldVal & Separator & NewVal
+            End If
+        End If
+        
+        ' Write the final value back
+        Target.Value = NewText
+        
+SafeExit:
+        Application.EnableEvents = True
+    End If
 End Sub
+
