@@ -1,42 +1,28 @@
-Sub Refresh_All_PowerQueries()
-    Dim ws As Worksheet
-    Dim qt As QueryTable
-    Dim lo As ListObject
+Sub Refresh_Selected_PowerQueries()
     Dim con As WorkbookConnection
-    Dim excludedConnectionName As String
+    Dim allowedConnections As Variant
+    Dim connectionName As Variant
     
-    ' Specify the connection name you want to exclude
-    excludedConnectionName = "Name_of_Your_BigQuery_Connection"
+    ' List of connections you want to refresh
+    allowedConnections = Array("RequirementIntake", "GeneratedTestCases") ' Modify as needed
 
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     Application.EnableEvents = False
 
-    ' Refresh All Queries except the excluded one
+    ' Refresh only selected queries
     For Each con In ThisWorkbook.Connections
-        If con.Type = xlConnectionTypeWORKSHEET Then
-            If con.Name <> excludedConnectionName Then
+        For Each connectionName In allowedConnections
+            If con.Name = connectionName Then
                 con.Refresh
+                Exit For ' No need to check other names once matched
             End If
-        End If
+        Next connectionName
     Next con
-
-    ' Refresh All Tables (to be safe)
-    For Each ws In ThisWorkbook.Worksheets
-        For Each lo In ws.ListObjects
-            On Error Resume Next
-            If Not lo.QueryTable Is Nothing Then
-                If lo.QueryTable.WorkbookConnection.Name <> excludedConnectionName Then
-                    lo.QueryTable.Refresh BackgroundQuery:=False
-                End If
-            End If
-            On Error GoTo 0
-        Next lo
-    Next ws
 
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
     Application.EnableEvents = True
 
-    MsgBox "All Power Queries and Tables Refreshed Successfully!", vbInformation
+    MsgBox "Selected Power Queries Refreshed Successfully!", vbInformation
 End Sub
