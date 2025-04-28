@@ -1,47 +1,45 @@
-Here’s a short and clear response for each bullet point you received:
+Sub Refresh_Selected_PowerQueries()
+    Dim ws As Worksheet
+    Dim qt As QueryTable
+    Dim lo As ListObject
+    Dim con As WorkbookConnection
+    Dim QueriesToRefresh As Variant
+    Dim qName As Variant
+    
+    ' === List your Query or Table names below ===
+    QueriesToRefresh = Array("Query1", "Query2") ' <-- Update these names
+    
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    Application.EnableEvents = False
+    
+    ' Refresh selected Connections
+    For Each con In ThisWorkbook.Connections
+        For Each qName In QueriesToRefresh
+            If con.Name = qName Then
+                con.Refresh
+            End If
+        Next qName
+    Next con
 
-⸻
+    ' Refresh selected Tables
+    For Each ws In ThisWorkbook.Worksheets
+        For Each lo In ws.ListObjects
+            On Error Resume Next
+            If Not lo.QueryTable Is Nothing Then
+                For Each qName In QueriesToRefresh
+                    If lo.Name = qName Then
+                        lo.QueryTable.Refresh BackgroundQuery:=False
+                    End If
+                Next qName
+            End If
+            On Error GoTo 0
+        Next lo
+    Next ws
 
-1. Handling test scenarios where upstream changes are not productionized
-Update: Add a section on “Mocking and Stubbing Strategy” to simulate upstream changes when they are not available.
-Follow-up Question: Should we also include a mandatory risk note in test exit reports if mocks are used?
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    Application.EnableEvents = True
 
-⸻
-
-2. Data Fabrication ownership
-Update: Define a clear ownership model for fabricated test data – identify roles (e.g., QA Lead or Data Steward).
-Follow-up Question: Do you expect data fabrication to be automated (via scripts) or manual creation?
-
-⸻
-
-3. Tying deployment schedules with Sprint end
-Update: Explicitly align test cycles and deployment readiness with Sprint end dates; add in the plan.
-Follow-up Question: Should testing sign-offs be a formal Sprint closure criterion?
-
-⸻
-
-4. Feature-based testing vs Data-driven/Regression
-Update: Add a hybrid model – combine Feature-based testing during Sprints with Data-driven Regression after code freeze.
-Follow-up Question: Should we prioritize feature stories for in-sprint automation as well?
-
-⸻
-
-5. Testing environment scope (dynamic interfaces, risks)
-Update: Expand the environment strategy section to map external dependencies like RDHM, wREN/RMP, WDR; flag production risks.
-Follow-up Question: Should we create a dependency tracking sheet for these interfaces?
-
-⸻
-
-6. Listing exact services (FCCP, NCCR RWA, etc.)
-Update: Create a definitive list of services/systems covered in scope. Mention explicitly if FCCP is a generic term.
-Follow-up Question: Would you prefer a simple table format listing Service Name, Environment, Risk Flag?
-
-⸻
-
-7. IT Access to Canary Environment and Role Definition
-Update: Add a subsection detailing IT access needs for Canary and define related QA/IT roles clearly.
-Follow-up Question: Should we document IT access requests formally in the test environment readiness checklist?
-
-⸻
-
-Would you also like me to prepare a 1-slide summary or a table you can quickly use for your discussion? It might help you sound even more organized.
+    MsgBox "Selected Power Queries and Tables Refreshed Successfully!", vbInformation
+End Sub
