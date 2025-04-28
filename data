@@ -1,27 +1,47 @@
-Understood.
-Here is the corrected and finalized email with RWA-NCCR sub-value stream:
+Here’s a short and clear response for each bullet point you received:
 
 ⸻
 
-Subject: Rescheduling Walkthrough Call for June Month-End Pilot – RWA-NCCR Sub-Value Stream
-
-Email Body:
-
-Hi All,
-
-I hope you are doing well.
-
-I am moving the walkthrough call to next week, as we are still finalizing certain points related to the June month-end pilot for the RWA-NCCR sub-value stream and the associated testing strategy.
-
-The objective of this call is to walk the team through the Testing Strategy Guidelines implementation planned for the June month-end release. During the session, I will share the selected Testing Strategy Guidelines and the automation opportunities identified for this pilot, followed by a detailed walkthrough.
-
-The call is scheduled for one hour to allow sufficient time for questions and discussions.
-
-Thank you for your understanding.
-
-Best regards,
-[Your Name]
+1. Handling test scenarios where upstream changes are not productionized
+Update: Add a section on “Mocking and Stubbing Strategy” to simulate upstream changes when they are not available.
+Follow-up Question: Should we also include a mandatory risk note in test exit reports if mocks are used?
 
 ⸻
 
-Would you also need a short note you can send while updating or resending the meeting invite? I can provide that too if needed.
+2. Data Fabrication ownership
+Update: Define a clear ownership model for fabricated test data – identify roles (e.g., QA Lead or Data Steward).
+Follow-up Question: Do you expect data fabrication to be automated (via scripts) or manual creation?
+
+⸻
+
+3. Tying deployment schedules with Sprint end
+Update: Explicitly align test cycles and deployment readiness with Sprint end dates; add in the plan.
+Follow-up Question: Should testing sign-offs be a formal Sprint closure criterion?
+
+⸻
+
+4. Feature-based testing vs Data-driven/Regression
+Update: Add a hybrid model – combine Feature-based testing during Sprints with Data-driven Regression after code freeze.
+Follow-up Question: Should we prioritize feature stories for in-sprint automation as well?
+
+⸻
+
+5. Testing environment scope (dynamic interfaces, risks)
+Update: Expand the environment strategy section to map external dependencies like RDHM, wREN/RMP, WDR; flag production risks.
+Follow-up Question: Should we create a dependency tracking sheet for these interfaces?
+
+⸻
+
+6. Listing exact services (FCCP, NCCR RWA, etc.)
+Update: Create a definitive list of services/systems covered in scope. Mention explicitly if FCCP is a generic term.
+Follow-up Question: Would you prefer a simple table format listing Service Name, Environment, Risk Flag?
+
+⸻
+
+7. IT Access to Canary Environment and Role Definition
+Update: Add a subsection detailing IT access needs for Canary and define related QA/IT roles clearly.
+Follow-up Question: Should we document IT access requests formally in the test environment readiness checklist?
+
+⸻
+
+Would you also like me to prepare a 1-slide summary or a table you can quickly use for your discussion? It might help you sound even more organized.
