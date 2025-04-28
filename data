@@ -1,25 +1,27 @@
-let
-    Source = Table.NestedJoin(RequirementIntake_updated, {"Extracted Hashtags"}, MasterMapping, {"Hashtag"}, "MasterMapping", JoinKind.LeftOuter),
-    #"Expanded MasterMapping" = Table.ExpandTableColumn(Source, "MasterMapping", {"Test Case ID", "Test Case Description", "Step Number", "Test Step", "Expected Result"}, {"Test Case ID", "Test Case Description", "Step Number", "Test Step", "Expected Result"}),
-
-    // List of columns you want to ensure are present
-    ColumnsToAdd = {
-        "S.No.", "Test Case Type", "Issue Key", "Issue Link Type", "Issues Key To Link",
-        "Component/s", "Labels", "Epic Link", "Affects Version/s", "Summary", "Description",
-        "Acceptance Criteria", "HashTag", "project_01", "batch_01", "table_01", "column_01", 
-        "where_clause_01", "project_02", "batch_02", "table_02", "column_02", "where_clause_02",
-        "group_by_columns", "amount_column", "folder", "file", "sheet", "include_columns", "SQL",
-        "Test Data", "Assignee"
-    },
-
-    ExistingColumns = Table.ColumnNames(#"Expanded MasterMapping"),
-    
-    ColumnsMissing = List.Select(ColumnsToAdd, each not List.Contains(ExistingColumns, _)),
-    
-    AddColumnsStep = List.Accumulate(
-        ColumnsMissing,
-        #"Expanded MasterMapping",
-        (state, current) => Table.AddColumn(state, current, each null, type text)
-    )
-in
-    AddColumnsStep
+Record.ToJson(
+    [
+        bigquery = [
+            project = [project_01],
+            dataset = [batch_01],
+            table = [table_01],
+            column = [column_01],
+            where_clause = [where_clause_01]
+        ],
+        bigquery2 = [
+            project = [project_02],
+            dataset = [batch_02],
+            table = [table_02],
+            column = [column_02],
+            where_clause = [where_clause_02]
+        ],
+        sql_query = [SQL],
+        group_by_columns = {[group_by_columns]},
+        amount_column = [amount_column],
+        local_database = [
+            folder = [folder],
+            file = [file],
+            sheet = [sheet]
+        ],
+        include_columns = {[include_columns]}
+    ]
+)
