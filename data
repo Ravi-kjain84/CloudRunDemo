@@ -1,1 +1,28 @@
 
+Sub Refresh_All_PowerQueries()
+    Dim ws As Worksheet
+    Dim qt As QueryTable
+    Dim lo As ListObject
+    Dim cn As WorkbookConnection
+    
+    On Error Resume Next
+    
+    ' Refresh all Workbook Connections (Power Query connections)
+    For Each cn In ThisWorkbook.Connections
+        If cn.Name Like "*Query*" Then
+            cn.Refresh
+        End If
+    Next cn
+    
+    ' Refresh all Table Queries (if any)
+    For Each ws In ThisWorkbook.Worksheets
+        For Each lo In ws.ListObjects
+            If lo.QueryTable Is Nothing Then
+            Else
+                lo.QueryTable.Refresh BackgroundQuery:=False
+            End If
+        Next lo
+    Next ws
+    
+    On Error GoTo 0
+End Sub
