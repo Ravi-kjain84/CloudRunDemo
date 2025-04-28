@@ -6,15 +6,35 @@ Sub Refresh_Selected_PowerQueries()
     Dim QueriesToRefresh As Variant
     Dim qName As Variant
     Dim Found As Boolean
+    Dim ConnectionList As String
+    Dim TableList As String
     
     ' === List your Query or Table names below ===
     QueriesToRefresh = Array("GeneratedTestCases", "Query2") ' <-- Update these names
     
+    ' === First, Build a List of All Connections ===
+    ConnectionList = ""
+    For Each con In ThisWorkbook.Connections
+        ConnectionList = ConnectionList & con.Name & vbCrLf
+    Next con
+    
+    ' === Build a List of All Tables ===
+    TableList = ""
+    For Each ws In ThisWorkbook.Worksheets
+        For Each lo In ws.ListObjects
+            TableList = TableList & lo.Name & " (Sheet: " & ws.Name & ")" & vbCrLf
+        Next lo
+    Next ws
+    
+    ' === Show the available connections and tables ===
+    MsgBox "Available Connections:" & vbCrLf & ConnectionList
+    MsgBox "Available Tables:" & vbCrLf & TableList
+
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     Application.EnableEvents = False
     
-    ' Refresh selected Connections
+    ' === Refresh selected Connections ===
     For Each qName In QueriesToRefresh
         Found = False
         For Each con In ThisWorkbook.Connections
@@ -31,7 +51,7 @@ Sub Refresh_Selected_PowerQueries()
         End If
     Next qName
 
-    ' Refresh selected Tables
+    ' === Refresh selected Tables ===
     For Each qName In QueriesToRefresh
         Found = False
         For Each ws In ThisWorkbook.Worksheets
