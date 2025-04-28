@@ -1,27 +1,30 @@
-Record.ToJson(
-    [
-        bigquery = [
-            project = [project_01],
-            dataset = [batch_01],
-            table = [table_01],
-            column = [column_01],
-            where_clause = [where_clause_01]
-        ],
-        bigquery2 = [
-            project = [project_02],
-            dataset = [batch_02],
-            table = [table_02],
-            column = [column_02],
-            where_clause = [where_clause_02]
-        ],
-        sql_query = [SQL],
-        group_by_columns = {[group_by_columns]},
-        amount_column = [amount_column],
-        local_database = [
-            folder = [folder],
-            file = [file],
-            sheet = [sheet]
-        ],
-        include_columns = {[include_columns]}
-    ]
+Text.Combine(
+    List.Select({
+        "{""bigquery"":{",
+        if Text.Trim([project_01]) <> "" then """project"": """ & [project_01] & """," else null,
+        if Text.Trim([batch_01]) <> "" then """dataset"": """ & [batch_01] & """," else null,
+        if Text.Trim([table_01]) <> "" then """table"": """ & [table_01] & """," else null,
+        if Text.Trim([column_01]) <> "" then """column"": """ & [column_01] & """," else null,
+        if Text.Trim([where_clause_01]) <> "" then """where_clause"": """ & [where_clause_01] & """}," else null,
+        
+        """bigquery2"":{",
+        if Text.Trim([project_02]) <> "" then """project"": """ & [project_02] & """," else null,
+        if Text.Trim([batch_02]) <> "" then """dataset"": """ & [batch_02] & """," else null,
+        if Text.Trim([table_02]) <> "" then """table"": """ & [table_02] & """," else null,
+        if Text.Trim([column_02]) <> "" then """column"": """ & [column_02] & """," else null,
+        if Text.Trim([where_clause_02]) <> "" then """where_clause"": """ & [where_clause_02] & """}," else null,
+        
+        if Text.Trim([SQL]) <> "" then """sql_query"": """ & [SQL] & """," else null,
+        if Text.Trim([group_by_columns]) <> "" then """group_by_columns"": [""" & [group_by_columns] & """]," else null,
+        if Text.Trim([amount_column]) <> "" then """amount_column"": """ & [amount_column] & """," else null,
+        
+        """local_database"":{",
+        if Text.Trim([folder]) <> "" then """folder"": """ & [folder] & """," else null,
+        if Text.Trim([file]) <> "" then """file"": """ & [file] & """," else null,
+        if Text.Trim([sheet]) <> "" then """sheet"": """ & [sheet] & """}," else null,
+        
+        if Text.Trim([include_columns]) <> "" then """include_columns"": [""" & [include_columns] & """]" else null,
+        "}"
+    }, each _ <> null),
+""
 )
