@@ -1,12 +1,42 @@
+Sub Refresh_All_PowerQueries()
+    Dim ws As Worksheet
+    Dim qt As QueryTable
+    Dim lo As ListObject
+    Dim con As WorkbookConnection
+    Dim excludedConnectionName As String
+    
+    ' Specify the connection name you want to exclude
+    excludedConnectionName = "Name_of_Your_BigQuery_Connection"
 
-PROCESSORS = {
-    "#check_new_column_bigquery": check_new_column,
-    "#execute_custom_query_bigquery": execute_query,
-    "#check_reference_tables": cross_validate,
-    "#cross_validate_bigquery_vs_bigquery": cross_validate,
-    "#compare_user_count_bigquery": compare_count_datasets,
-    "#check_not_null_column_bigquery": check_column_not_null,
-    "#validate_aggregate_match_bigquery": aggregate,
-    "#compare_value_datasets": compare_value_datasets,
-    "#check_column_contains_values": check_column_contains_values
-}
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    Application.EnableEvents = False
+
+    ' Refresh All Queries except the excluded one
+    For Each con In ThisWorkbook.Connections
+        If con.Type = xlConnectionTypeWORKSHEET Then
+            If con.Name <> excludedConnectionName Then
+                con.Refresh
+            End If
+        End If
+    Next con
+
+    ' Refresh All Tables (to be safe)
+    For Each ws In ThisWorkbook.Worksheets
+        For Each lo In ws.ListObjects
+            On Error Resume Next
+            If Not lo.QueryTable Is Nothing Then
+                If lo.QueryTable.WorkbookConnection.Name <> excludedConnectionName Then
+                    lo.QueryTable.Refresh BackgroundQuery:=False
+                End If
+            End If
+            On Error GoTo 0
+        Next lo
+    Next ws
+
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    Application.EnableEvents = True
+
+    MsgBox "All Power Queries and Tables Refreshed Successfully!", vbInformation
+End Sub
