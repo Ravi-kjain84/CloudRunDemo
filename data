@@ -1,1 +1,12 @@
-dd
+
+PROCESSORS = {
+    "#check_new_column_bigquery": check_new_column,
+    "#execute_custom_query_bigquery": execute_query,
+    "#check_reference_tables": cross_validate,
+    "#cross_validate_bigquery_vs_bigquery": cross_validate,
+    "#compare_user_count_bigquery": compare_count_datasets,
+    "#check_not_null_column_bigquery": check_column_not_null,
+    "#validate_aggregate_match_bigquery": aggregate,
+    "#compare_value_datasets": compare_value_datasets,
+    "#check_column_contains_values": check_column_contains_values
+}
