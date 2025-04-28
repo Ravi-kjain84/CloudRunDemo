@@ -1,83 +1,44 @@
-Sub Refresh_Selected_PowerQueries()
-    Dim ws As Worksheet
-    Dim qt As QueryTable
-    Dim lo As ListObject
-    Dim con As WorkbookConnection
-    Dim QueriesToRefresh As Variant
-    Dim qName As Variant
-    Dim Found As Boolean
-    Dim ConnectionList As String
-    Dim TableList As String
-    
-    ' === List your Query or Table names below ===
-    QueriesToRefresh = Array("GeneratedTestCases", "Query2") ' <-- Update these names
-    
-    ' === First, Build a List of All Connections ===
-    ConnectionList = ""
-    For Each con In ThisWorkbook.Connections
-        ConnectionList = ConnectionList & con.Name & vbCrLf
-    Next con
-    
-    ' === Build a List of All Tables ===
-    TableList = ""
-    For Each ws In ThisWorkbook.Worksheets
-        For Each lo In ws.ListObjects
-            TableList = TableList & lo.Name & " (Sheet: " & ws.Name & ")" & vbCrLf
-        Next lo
-    Next ws
-    
-    ' === Show the available connections and tables ===
-    MsgBox "Available Connections:" & vbCrLf & ConnectionList
-    MsgBox "Available Tables:" & vbCrLf & TableList
+let
+    Source = Table.NestedJoin(RequirementIntake_updated, {"Extracted Hashtags"}, MasterMapping, {"Hashtag"}, "MasterMapping", JoinKind.LeftOuter),
+    #"Expanded MasterMapping" = Table.ExpandTableColumn(Source, "MasterMapping", {"Test Case ID", "Test Case Description", "Step Number", "Test Step", "Expected Result"}, {"Test Case ID", "Test Case Description", "Step Number", "Test Step", "Expected Result"}),
 
-    Application.ScreenUpdating = False
-    Application.DisplayAlerts = False
-    Application.EnableEvents = False
+    // Add all required blank columns
+    #"Added Blank Columns" = Table.AddColumn(#"Expanded MasterMapping", "S.No.", each null, type text),
+    #"Added Test Case Type" = Table.AddColumn(#"Added Blank Columns", "Test Case Type", each null, type text),
+    #"Added Issue Key" = Table.AddColumn(#"Added Test Case Type", "Issue Key", each null, type text),
+    #"Added Issue Link Type" = Table.AddColumn(#"Added Issue Key", "Issue Link Type", each null, type text),
+    #"Added Issues Key To Link" = Table.AddColumn(#"Added Issue Link Type", "Issues Key To Link", each null, type text),
+    #"Added Component/s" = Table.AddColumn(#"Added Issues Key To Link", "Component/s", each null, type text),
+    #"Added Labels" = Table.AddColumn(#"Added Component/s", "Labels", each null, type text),
+    #"Added Epic Link" = Table.AddColumn(#"Added Labels", "Epic Link", each null, type text),
+    #"Added Affects Version/s" = Table.AddColumn(#"Added Epic Link", "Affects Version/s", each null, type text),
+    #"Added Summary" = Table.AddColumn(#"Added Affects Version/s", "Summary", each null, type text),
+    #"Added Description" = Table.AddColumn(#"Added Summary", "Description", each null, type text),
+    #"Added Acceptance Criteria" = Table.AddColumn(#"Added Description", "Acceptance Criteria", each null, type text),
+    #"Added HashTag" = Table.AddColumn(#"Added Acceptance Criteria", "HashTag", each null, type text),
     
-    ' === Refresh selected Connections ===
-    For Each qName In QueriesToRefresh
-        Found = False
-        For Each con In ThisWorkbook.Connections
-            If con.Name = qName Then
-                MsgBox "Refreshing Connection: " & con.Name
-                con.Refresh
-                Found = True
-                Exit For
-            End If
-        Next con
-        
-        If Not Found Then
-            MsgBox "Connection not found: " & qName
-        End If
-    Next qName
+    #"Added project_01" = Table.AddColumn(#"Added HashTag", "project_01", each null, type text),
+    #"Added batch_01" = Table.AddColumn(#"Added project_01", "batch_01", each null, type text),
+    #"Added table_01" = Table.AddColumn(#"Added batch_01", "table_01", each null, type text),
+    #"Added column_01" = Table.AddColumn(#"Added table_01", "column_01", each null, type text),
+    #"Added where_clause_01" = Table.AddColumn(#"Added column_01", "where_clause_01", each null, type text),
+    
+    #"Added project_02" = Table.AddColumn(#"Added where_clause_01", "project_02", each null, type text),
+    #"Added batch_02" = Table.AddColumn(#"Added project_02", "batch_02", each null, type text),
+    #"Added table_02" = Table.AddColumn(#"Added batch_02", "table_02", each null, type text),
+    #"Added column_02" = Table.AddColumn(#"Added table_02", "column_02", each null, type text),
+    #"Added where_clause_02" = Table.AddColumn(#"Added column_02", "where_clause_02", each null, type text),
+    
+    #"Added group_by_columns" = Table.AddColumn(#"Added where_clause_02", "group_by_columns", each null, type text),
+    #"Added amount_column" = Table.AddColumn(#"Added group_by_columns", "amount_column", each null, type text),
+    #"Added folder" = Table.AddColumn(#"Added amount_column", "folder", each null, type text),
+    #"Added file" = Table.AddColumn(#"Added folder", "file", each null, type text),
+    #"Added sheet" = Table.AddColumn(#"Added file", "sheet", each null, type text),
+    #"Added include_columns" = Table.AddColumn(#"Added sheet", "include_columns", each null, type text),
+    #"Added SQL" = Table.AddColumn(#"Added include_columns", "SQL", each null, type text),
+    
+    #"Added Test Data" = Table.AddColumn(#"Added SQL", "Test Data", each null, type text),
+    #"Added Assignee" = Table.AddColumn(#"Added Test Data", "Assignee", each null, type text)
 
-    ' === Refresh selected Tables ===
-    For Each qName In QueriesToRefresh
-        Found = False
-        For Each ws In ThisWorkbook.Worksheets
-            For Each lo In ws.ListObjects
-                On Error Resume Next
-                If Not lo.QueryTable Is Nothing Then
-                    If lo.Name = qName Then
-                        MsgBox "Refreshing Table: " & lo.Name & " in sheet " & ws.Name
-                        lo.QueryTable.Refresh BackgroundQuery:=False
-                        Found = True
-                        Exit For
-                    End If
-                End If
-                On Error GoTo 0
-            Next lo
-            If Found Then Exit For
-        Next ws
-        
-        If Not Found Then
-            MsgBox "Table not found: " & qName
-        End If
-    Next qName
-
-    Application.ScreenUpdating = True
-    Application.DisplayAlerts = True
-    Application.EnableEvents = True
-
-    MsgBox "Selected Power Queries and Tables Refreshed Successfully!", vbInformation
-End Sub
+in
+    #"Added Assignee"
