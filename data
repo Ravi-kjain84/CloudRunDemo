@@ -5,37 +5,55 @@ Sub Refresh_Selected_PowerQueries()
     Dim con As WorkbookConnection
     Dim QueriesToRefresh As Variant
     Dim qName As Variant
+    Dim Found As Boolean
     
     ' === List your Query or Table names below ===
-    QueriesToRefresh = Array("Query1", "Query2") ' <-- Update these names
+    QueriesToRefresh = Array("GeneratedTestCases", "Query2") ' <-- Update these names
     
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     Application.EnableEvents = False
     
     ' Refresh selected Connections
-    For Each con In ThisWorkbook.Connections
-        For Each qName In QueriesToRefresh
+    For Each qName In QueriesToRefresh
+        Found = False
+        For Each con In ThisWorkbook.Connections
             If con.Name = qName Then
+                MsgBox "Refreshing Connection: " & con.Name
                 con.Refresh
+                Found = True
+                Exit For
             End If
-        Next qName
-    Next con
+        Next con
+        
+        If Not Found Then
+            MsgBox "Connection not found: " & qName
+        End If
+    Next qName
 
     ' Refresh selected Tables
-    For Each ws In ThisWorkbook.Worksheets
-        For Each lo In ws.ListObjects
-            On Error Resume Next
-            If Not lo.QueryTable Is Nothing Then
-                For Each qName In QueriesToRefresh
+    For Each qName In QueriesToRefresh
+        Found = False
+        For Each ws In ThisWorkbook.Worksheets
+            For Each lo In ws.ListObjects
+                On Error Resume Next
+                If Not lo.QueryTable Is Nothing Then
                     If lo.Name = qName Then
+                        MsgBox "Refreshing Table: " & lo.Name & " in sheet " & ws.Name
                         lo.QueryTable.Refresh BackgroundQuery:=False
+                        Found = True
+                        Exit For
                     End If
-                Next qName
-            End If
-            On Error GoTo 0
-        Next lo
-    Next ws
+                End If
+                On Error GoTo 0
+            Next lo
+            If Found Then Exit For
+        Next ws
+        
+        If Not Found Then
+            MsgBox "Table not found: " & qName
+        End If
+    Next qName
 
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
