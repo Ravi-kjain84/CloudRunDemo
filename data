@@ -1,23 +1,22 @@
-Text.Combine({
-    "{""bigquery"":{",
-    """project"": """ & [project_01] & """,",
-    """dataset"": """ & [batch_01] & """,",
-    """table"": """ & [table_01] & """,",
-    """column"": """ & [column_01] & """,",
-    """where_clause"": """ & [where_clause_01] & """},",
-    """bigquery2"":{",
-    """project"": """ & [project_02] & """,",
-    """dataset"": """ & [batch_02] & """,",
-    """table"": """ & [table_02] & """,",
-    """column"": """ & [column_02] & """,",
-    """where_clause"": """ & [where_clause_02] & """},",
-    """sql_query"": """ & [SQL] & """,",
-    """group_by_columns"": [""" & [group_by_columns] & """],",
-    """amount_column"": """ & [amount_column] & """,",
-    """local_database"":{",
-    """folder"": """ & [folder] & """,",
-    """file"": """ & [file] & """,",
-    """sheet"": """ & [sheet] & """},",
-    """include_columns"": [""" & [include_columns] & """]",
-    "}"
-}, "")
+from jira import JIRA
+import pandas as pd
+
+# Configuration
+jira_url = "https://your-domain.atlassian.net"
+jira_email = "your_email@example.com"
+jira_token = "your_jira_token"
+
+# Connect using basic authentication with email and API token
+jira = JIRA(server=jira_url, basic_auth=(jira_email, jira_token))
+
+# Get all available fields
+fields = jira.fields()
+
+# Convert to DataFrame
+field_list = [{"Field Name": f["name"], "Field ID": f["id"]} for f in fields]
+df = pd.DataFrame(field_list)
+
+# Save to Excel
+df.to_excel("jira_fields.xlsx", index=False)
+
+print("Saved field list to jira_fields.xlsx")
