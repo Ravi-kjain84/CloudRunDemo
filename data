@@ -1,22 +1,26 @@
-from jira import JIRA
-import pandas as pd
 
-# Configuration
-jira_url = "https://your-domain.atlassian.net"
-jira_email = "your_email@example.com"
-jira_token = "your_jira_token"
 
-# Connect using basic authentication with email and API token
-jira = JIRA(server=jira_url, basic_auth=(jira_email, jira_token))
+To introduce myself, I’m Ravi Jain, currently assigned as the Testing Serial Lead and reporting to Roshan. I’ve recently started in this role and am reviewing the current testing team structure.
 
-# Get all available fields
-fields = jira.fields()
+As per the records shared with me, the following individuals are listed under your supervision and marked with the role of *Business Tester*:
 
-# Convert to DataFrame
-field_list = [{"Field Name": f["name"], "Field ID": f["id"]} for f in fields]
-df = pd.DataFrame(field_list)
+- Deepak Oberoi  
+- Bhuvanesh Uniyal  
+- Madoop Kandath  
+- Kathija Fathima  
+- Khushal Sabharwal  
+- Sana Yasmin  
 
-# Save to Excel
-df.to_excel("jira_fields.xlsx", index=False)
+Could you please confirm for my records whether these colleagues, along with you, are actively involved in business testing? My understanding is that you are currently supporting Liquidity UAT—please confirm if that is correct.
 
-print("Saved field list to jira_fields.xlsx")
+Also, your role is marked as *Business Tester*. Should this be updated to *Business QA Testing Lead*?
+
+Happy to have a quick intro call if you’d prefer to walk through this.
+
+Best regards,  
+**Ravi Jain**  
+Testing Serial Lead  
+
+---
+
+Let me know if you want a version tailored for sending to the whole team.
