@@ -1,32 +1,75 @@
-import win32com.client as win32
+import pandas as pd
+from datetime import datetime
+from typing import Optional
 
-# CONFIGURATION
-SHARED_MAILBOX_NAME = "testing.coe@noexternalmail.hsbc.com"
-TARGET_FOLDER_NAME = "Python draft shared test test test"
 
-try:
-    outlook = win32.Dispatch("Outlook.Application")
-    namespace = outlook.GetNamespace("MAPI")
+class JiraKPITracker:
+    def __init__(self, csv_path: str):
+        self.csv_path = csv_path
+        self.df = pd.read_csv(csv_path)
+        self.preprocess()
 
-    # STEP 1: Access the shared mailbox
-    recipient = namespace.CreateRecipient(SHARED_MAILBOX_NAME)
-    recipient.Resolve()
-    if not recipient.Resolved:
-        raise Exception(f"[ERROR] Shared mailbox '{SHARED_MAILBOX_NAME}' not found.")
+    def preprocess(self):
+        self.df['Timestamp'] = pd.to_datetime(self.df['Timestamp'], errors='coerce')
+        self.df = self.df.sort_values(by=['Jira_Id', 'Timestamp'])
+        self.df = self.df[self.df['Change_Item'].str.lower() == 'status']
 
-    shared_mailbox = namespace.GetSharedDefaultFolder(recipient, 6)  # 6 = Inbox
+    def calculate_ft_duration(self) -> pd.DataFrame:
+        durations = []
 
-    # STEP 2: Look for the folder under Inbox
-    target_folder = None
-    for folder in shared_mailbox.Folders:
-        if folder.Name == TARGET_FOLDER_NAME:
-            target_folder = folder
-            break
+        for jira_id, group in self.df.groupby('Jira_Id'):
+            start_time: Optional[pd.Timestamp] = None
+            end_time: Optional[pd.Timestamp] = None
+            epic_link = group['epic_link'].iloc[0] if 'epic_link' in group.columns else 'N/A'
 
-    if not target_folder:
-        raise Exception(f"[ERROR] Folder '{TARGET_FOLDER_NAME}' not found in shared mailbox.")
+            for _, row in group.iterrows():
+                status = row['Change_Value'].strip().upper()
 
-    print(f"[INFO] Target folder found: {target_folder.Name}")
+                if not start_time and status == 'FT IN PROGRESS':
+                    start_time = row['Timestamp']
 
-except Exception as e:
-    print(f"[ERROR] Outlook setup failed: {e}")
+                elif start_time and status in ('READY FOR UAT', 'UAT IN PROGRESS'):
+                    end_time = row['Timestamp']
+                    break
+
+            if start_time and end_time:
+                duration_days = (end_time - start_time).total_seconds() / (24 * 3600)
+                durations.append({
+                    'Jira_Id': jira_id,
+                    'Epic': epic_link,
+                    'Start': start_time,
+                    'End': end_time,
+                    'Duration (days)': round(duration_days, 2)
+                })
+            else:
+                durations.append({
+                    'Jira_Id': jira_id,
+                    'Epic': epic_link,
+                    'Start': start_time,
+                    'End': end_time,
+                    'Duration (days)': None
+                })
+
+        return pd.DataFrame(durations)
+
+    def calculate_average_ft_by_epic(self, duration_df: pd.DataFrame) -> pd.DataFrame:
+        return (
+            duration_df.dropna(subset=['Duration (days)'])
+            .groupby('Epic')['Duration (days)']
+            .mean()
+            .reset_index()
+            .rename(columns={'Duration (days)': 'Average FT Duration (days)'})
+        )
+
+
+# --- Usage ---
+if __name__ == "__main__":
+    tracker = JiraKPITracker("jira_logs.csv")  # Replace with your actual file path
+
+    ft_durations = tracker.calculate_ft_duration()
+    ft_durations.to_excel("ft_test_durations.xlsx", index=False)
+
+    epic_averages = tracker.calculate_average_ft_by_epic(ft_durations)
+    epic_averages.to_excel("epic_avg_ft_duration.xlsx", index=False)
+
+    print("FT testing KPIs exported successfully.")
