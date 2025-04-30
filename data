@@ -1,32 +1,36 @@
-Certainly. Here’s a revised version of your email, trimmed to ~80% of the original length, with improved conciseness and corrected details:
+import win32com.client as win32
 
----
+# CONFIGURATION
+SHARED_MAILBOX_NAME = "Testing CoE Mailbox"  # Name as it appears in Outlook
+TARGET_FOLDER_NAME = "MyTargetFolder"        # Name of the subfolder you want to use/create
 
-**Subject:** Confirmation of Business Testing Roles and Reporting Structure
+try:
+    outlook = win32.Dispatch("Outlook.Application")
+    namespace = outlook.GetNamespace("MAPI")
 
-Hi Ayush,
+    # STEP 1: Access the shared mailbox
+    recipient = namespace.CreateRecipient(SHARED_MAILBOX_NAME)
+    recipient.Resolve()
+    if not recipient.Resolved:
+        raise Exception(f"[ERROR] Shared mailbox '{SHARED_MAILBOX_NAME}' not found.")
 
-I’m Ravi Jain, recently assigned as the **Testing CoE Lead**, reporting to Ruchan. I’m responsible for driving the strategic execution and effectiveness of the Testing CoE across value streams, including defining the testing approach and improving delivery efficiency.
+    shared_mailbox = namespace.GetSharedDefaultFolder(recipient, 6)  # 6 = Inbox
+    parent_folder = shared_mailbox.Parent
 
-As part of my initial review of the testing setup, I came across the following names under your supervision, marked as *Business Testers*:
+    # STEP 2: Locate or create the target folder
+    target_folder = None
+    for folder in parent_folder.Folders:
+        if folder.Name == TARGET_FOLDER_NAME:
+            target_folder = folder
+            break
 
-- Deepak Oberoi  
-- Bhuvanesh Uniyal  
-- Madoop Kandath  
-- Kathija Fathima  
-- Khushal Sabharwal  
-- Sana Yasmin  
+    if not target_folder:
+        # Folder doesn't exist, create it under Inbox
+        target_folder = shared_mailbox.Folders.Add(TARGET_FOLDER_NAME)
+        print(f"[INFO] Folder '{TARGET_FOLDER_NAME}' created in shared mailbox.")
 
-Could you please confirm if these colleagues, along with you, are currently involved in business testing? My understanding is that you're supporting Liquidity UAT—please confirm.
+    print(f"[INFO] Target folder ready: {target_folder.Name}")
 
-Also, your role is listed as *Business Tester*. Should this be updated to *Business QA Testing Lead*?
-
-Happy to connect briefly if needed.
-
-Best regards,  
-**Ravi Jain**  
-Testing CoE Lead
-
----
-
-Would you like a shorter version for messaging platforms like Teams as well?
+except Exception as e:
+    print(f"[ERROR] Outlook setup failed: {e}")
+    exit()
