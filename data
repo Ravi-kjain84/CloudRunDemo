@@ -1,36 +1,9 @@
-import win32com.client as win32
+import win32com.client
 
-# CONFIGURATION
-SHARED_MAILBOX_NAME = "Testing CoE Mailbox"  # Name as it appears in Outlook
-TARGET_FOLDER_NAME = "MyTargetFolder"        # Name of the subfolder you want to use/create
+outlook = win32com.client.Dispatch("Outlook.Application")
+namespace = outlook.GetNamespace("MAPI")
 
-try:
-    outlook = win32.Dispatch("Outlook.Application")
-    namespace = outlook.GetNamespace("MAPI")
-
-    # STEP 1: Access the shared mailbox
-    recipient = namespace.CreateRecipient(SHARED_MAILBOX_NAME)
-    recipient.Resolve()
-    if not recipient.Resolved:
-        raise Exception(f"[ERROR] Shared mailbox '{SHARED_MAILBOX_NAME}' not found.")
-
-    shared_mailbox = namespace.GetSharedDefaultFolder(recipient, 6)  # 6 = Inbox
-    parent_folder = shared_mailbox.Parent
-
-    # STEP 2: Locate or create the target folder
-    target_folder = None
-    for folder in parent_folder.Folders:
-        if folder.Name == TARGET_FOLDER_NAME:
-            target_folder = folder
-            break
-
-    if not target_folder:
-        # Folder doesn't exist, create it under Inbox
-        target_folder = shared_mailbox.Folders.Add(TARGET_FOLDER_NAME)
-        print(f"[INFO] Folder '{TARGET_FOLDER_NAME}' created in shared mailbox.")
-
-    print(f"[INFO] Target folder ready: {target_folder.Name}")
-
-except Exception as e:
-    print(f"[ERROR] Outlook setup failed: {e}")
-    exit()
+# List all top-level folders (mailboxes)
+print("Available mailboxes / accounts:")
+for i in range(namespace.Folders.Count):
+    print(f"{i+1}. {namespace.Folders.Item(i+1).Name}")
