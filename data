@@ -32,44 +32,21 @@ class JiraKPITracker:
                     end_time = row['Timestamp']
                     break
 
-            if start_time and end_time:
-                duration_days = (end_time - start_time).total_seconds() / (24 * 3600)
-                durations.append({
-                    'Jira_Id': jira_id,
-                    'Epic': epic_link,
-                    'Start': start_time,
-                    'End': end_time,
-                    'Duration (days)': round(duration_days, 2)
-                })
-            else:
-                durations.append({
-                    'Jira_Id': jira_id,
-                    'Epic': epic_link,
-                    'Start': start_time,
-                    'End': end_time,
-                    'Duration (days)': None
-                })
+            durations.append({
+                'Jira_Id': jira_id,
+                'Epic': epic_link,
+                'FT Start': start_time,
+                'FT End': end_time,
+                'FT Duration (days)': round((end_time - start_time).total_seconds() / (24 * 3600), 2)
+                if start_time and end_time else None
+            })
 
         return pd.DataFrame(durations)
 
-    def calculate_average_ft_by_epic(self, duration_df: pd.DataFrame) -> pd.DataFrame:
-        return (
-            duration_df.dropna(subset=['Duration (days)'])
-            .groupby('Epic')['Duration (days)']
-            .mean()
-            .reset_index()
-            .rename(columns={'Duration (days)': 'Average FT Duration (days)'})
-        )
 
-
-# --- Usage ---
+# --- Execution Entry Point ---
 if __name__ == "__main__":
-    tracker = JiraKPITracker("jira_logs.csv")  # Replace with your actual file path
-
+    tracker = JiraKPITracker("jira_logs.csv")  # Replace with your actual CSV path
     ft_durations = tracker.calculate_ft_duration()
     ft_durations.to_excel("ft_test_durations.xlsx", index=False)
-
-    epic_averages = tracker.calculate_average_ft_by_epic(ft_durations)
-    epic_averages.to_excel("epic_avg_ft_duration.xlsx", index=False)
-
-    print("FT testing KPIs exported successfully.")
+    print("FT testing duration file generated: ft_test_durations.xlsx")
