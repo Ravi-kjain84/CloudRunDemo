@@ -2,7 +2,7 @@ import win32com.client as win32
 
 # CONFIGURATION
 SHARED_MAILBOX_NAME = "testing.coe@noexternalmail.hsbc.com"
-TARGET_FOLDER_NAME = "New Python draft shared"
+TARGET_FOLDER_NAME = "Python draft shared test test test"
 
 try:
     outlook = win32.Dispatch("Outlook.Application")
@@ -10,24 +10,23 @@ try:
 
     # STEP 1: Access the shared mailbox
     recipient = namespace.CreateRecipient(SHARED_MAILBOX_NAME)
+    recipient.Resolve()
     if not recipient.Resolved:
         raise Exception(f"[ERROR] Shared mailbox '{SHARED_MAILBOX_NAME}' not found.")
 
     shared_mailbox = namespace.GetSharedDefaultFolder(recipient, 6)  # 6 = Inbox
 
-    # STEP 2: Check or create the target folder under Inbox
+    # STEP 2: Look for the folder under Inbox
     target_folder = None
     for folder in shared_mailbox.Folders:
         if folder.Name == TARGET_FOLDER_NAME:
             target_folder = folder
-            print(f"[INFO] Folder already exists: {target_folder.Name}")
             break
 
     if not target_folder:
-        target_folder = shared_mailbox.Folders.Add(TARGET_FOLDER_NAME)
-        print(f"[INFO] Folder '{TARGET_FOLDER_NAME}' created in shared mailbox.")
+        raise Exception(f"[ERROR] Folder '{TARGET_FOLDER_NAME}' not found in shared mailbox.")
 
-    print(f"[INFO] Target folder ready: {target_folder.Name}")
+    print(f"[INFO] Target folder found: {target_folder.Name}")
 
 except Exception as e:
     print(f"[ERROR] Outlook setup failed: {e}")
