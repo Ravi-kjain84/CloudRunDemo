@@ -3,50 +3,42 @@ from datetime import datetime
 from typing import Optional
 
 
-class JiraKPITracker:
+class JiraPhaseDurationTracker:
     def __init__(self, csv_path: str):
-        self.csv_path = csv_path
         self.df = pd.read_csv(csv_path)
-        self.preprocess()
+        self._prepare()
 
-    def preprocess(self):
+    def _prepare(self):
         self.df['Timestamp'] = pd.to_datetime(self.df['Timestamp'], errors='coerce')
         self.df = self.df.sort_values(by=['Jira_Id', 'Timestamp'])
         self.df = self.df[self.df['Change_Item'].str.lower() == 'status']
 
-    def calculate_ft_duration(self) -> pd.DataFrame:
-        durations = []
+    def calculate(self) -> pd.DataFrame:
+        phase_pairs = {
+            "Waiting for Design": ("Open", "Design in progress"),
+            "Design Time": ("Design in progress", "Design Complete"),
+            "Build Time": ("Build in progress", "Build Complete"),
+            "FT Time": ("FT IN PROGRESS", "Ready for UAT"),
+            "UAT Time": ("UAT IN PROGRESS", "Closed")
+        }
 
-        for jira_id, group in self.df.groupby('Jira_Id'):
-            start_time: Optional[pd.Timestamp] = None
-            end_time: Optional[pd.Timestamp] = None
-            epic_link = group['epic_link'].iloc[0] if 'epic_link' in group.columns else 'N/A'
+        results = []
 
-            for _, row in group.iterrows():
-                status = row['Change_Value'].strip().upper()
+        for jira_id, group in self.df.groupby("Jira_Id"):
+            row = {"Jira_Id": jira_id}
+            times = dict(zip(group['Change_Value'], group['Timestamp']))
 
-                if not start_time and status == 'FT IN PROGRESS':
-                    start_time = row['Timestamp']
+            for label, (start, end) in phase_pairs.items():
+                s, e = times.get(start), times.get(end)
+                row[label] = round((e - s).total_seconds() / 86400, 2) if s and e else None
 
-                elif start_time and status in ('READY FOR UAT', 'UAT IN PROGRESS'):
-                    end_time = row['Timestamp']
-                    break
+            results.append(row)
 
-            durations.append({
-                'Jira_Id': jira_id,
-                'Epic': epic_link,
-                'FT Start': start_time,
-                'FT End': end_time,
-                'FT Duration (days)': round((end_time - start_time).total_seconds() / (24 * 3600), 2)
-                if start_time and end_time else None
-            })
-
-        return pd.DataFrame(durations)
+        return pd.DataFrame(results)
 
 
-# --- Execution Entry Point ---
 if __name__ == "__main__":
-    tracker = JiraKPITracker("jira_logs.csv")  # Replace with your actual CSV path
-    ft_durations = tracker.calculate_ft_duration()
-    ft_durations.to_excel("ft_test_durations.xlsx", index=False)
-    print("FT testing duration file generated: ft_test_durations.xlsx")
+    tracker = JiraPhaseDurationTracker("jira_logs.csv")  # Replace with your actual file path
+    df = tracker.calculate()
+    df.to_csv("jira_phase_durations.csv", index=False)
+    print("Generated: jira_phase_durations.csv")
