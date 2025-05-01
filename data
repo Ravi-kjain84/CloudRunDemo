@@ -1,11 +1,8 @@
-# Identifying Jira Acceptance Criteria
-acceptance_criteria1 = None
-if i["fields"].get("issuelinks"):
-    keys = []
-    for link in i["fields"]["issuelinks"]:
-        inward_issue = link.get("inwardIssue", {})
-        key = inward_issue.get("key", "")
-        if "REQ" in key:
-            keys.append(key)
-    if keys:
-        acceptance_criteria1 = ",".join(keys)
+keys = []
+for link in i["fields"].get("issuelinks", []):
+    for direction in ['inwardIssue', 'outwardIssue']:
+        issue = link.get(direction)
+        if issue and "REQ" in issue.get("key", ""):
+            keys.append(issue["key"])
+
+acceptance_criteria1 = ",".join(keys) if keys else None
