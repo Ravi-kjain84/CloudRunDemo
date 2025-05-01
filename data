@@ -1,36 +1,78 @@
 import pandas as pd
-from datetime import datetime
-from typing import Optional
-
+from typing import Optional, List, Dict, Tuple
 
 class JiraPhaseDurationTracker:
-    def __init__(self, csv_path: str):
+    def __init__(
+        self,
+        csv_path: str,
+        phase_definitions: Dict[str, Tuple[List[str], List[str]]]
+    ):
+        """
+        :param csv_path: path to your Jira status-change CSV
+        :param phase_definitions: 
+          dict where keys are phase names (e.g. "FT Time") 
+          and values are (start_status_list, end_status_list)
+        """
         self.df = pd.read_csv(csv_path)
+        self.phases = phase_definitions
         self._prepare()
 
     def _prepare(self):
+        # parse timestamps and filter to only status changes
         self.df['Timestamp'] = pd.to_datetime(self.df['Timestamp'], errors='coerce')
         self.df = self.df.sort_values(by=['Jira_Id', 'Timestamp'])
         self.df = self.df[self.df['Change_Item'].str.lower() == 'status']
 
-    def calculate(self) -> pd.DataFrame:
-        phase_pairs = {
-            "Waiting for Design": ("Open", "Design in progress"),
-            "Design Time": ("Design in progress", "Design Complete"),
-            "Build Time": ("Build in progress", "Build Complete"),
-            "FT Time": ("FT IN PROGRESS", "Ready for UAT"),
-            "UAT Time": ("UAT IN PROGRESS", "Closed")
-        }
+    def _calculate_multi_cycle_duration(
+        self,
+        group: pd.DataFrame,
+        start_statuses: List[str],
+        end_statuses: List[str]
+    ) -> Optional[float]:
+        """
+        Sum up all intervals from any start → any end in sequence.
+        Returns total days (float) or None if no complete cycle found.
+        """
+        total = pd.Timedelta(0)
+        start_time: Optional[pd.Timestamp] = None
 
+        # upper-case comparisons for robustness
+        starts = {s.upper() for s in start_statuses}
+        ends   = {e.upper() for e in end_statuses}
+
+        for _, row in group.iterrows():
+            status = row['Change_Value'].strip().upper()
+            ts     = row['Timestamp']
+
+            if status in starts and start_time is None:
+                start_time = ts
+
+            elif status in ends and start_time is not None:
+                total += (ts - start_time)
+                start_time = None
+
+        if total.total_seconds() > 0:
+            # return in days, rounded to 2 decimals
+            return round(total.total_seconds() / 86400, 2)
+        return None
+
+    def calculate_all_phases(self) -> pd.DataFrame:
+        """
+        Compute durations for each defined phase and return a DataFrame:
+        | Jira_Id | [Epic] | Phase 1 (days) | Phase 2 (days) | ... |
+        """
         results = []
 
-        for jira_id, group in self.df.groupby("Jira_Id"):
-            row = {"Jira_Id": jira_id}
-            times = dict(zip(group['Change_Value'], group['Timestamp']))
+        for jira_id, group in self.df.groupby('Jira_Id'):
+            row = {'Jira_Id': jira_id}
+            # optional: include epic if present
+            if 'epic_link' in group.columns:
+                row['Epic'] = group['epic_link'].iloc[0]
 
-            for label, (start, end) in phase_pairs.items():
-                s, e = times.get(start), times.get(end)
-                row[label] = round((e - s).total_seconds() / 86400, 2) if s and e else None
+            # compute each phase
+            for phase_name, (starts, ends) in self.phases.items():
+                duration = self._calculate_multi_cycle_duration(group, starts, ends)
+                row[f"{phase_name} (days)"] = duration
 
             results.append(row)
 
@@ -38,7 +80,15 @@ class JiraPhaseDurationTracker:
 
 
 if __name__ == "__main__":
-    tracker = JiraPhaseDurationTracker("jira_logs.csv")  # Replace with your actual file path
-    df = tracker.calculate()
-    df.to_csv("jira_phase_durations.csv", index=False)
-    print("Generated: jira_phase_durations.csv")
+    # Define your phases here:
+    phase_definitions = {
+        "Design Time":       (["Design in progress"],      ["Design Complete"]),
+        "Build Time":        (["Build in progress"],       ["Build Complete"]),
+        "FT Time":           (["FT IN PROGRESS"],          ["Blocked / On Hold", "Ready for UAT"]),
+        "UAT Time":          (["UAT IN PROGRESS"],         ["Closed"]),
+    }
+
+    tracker = JiraPhaseDurationTracker("jira_logs.csv", phase_definitions)
+    df = tracker.calculate_all_phases()
+    df.to_excel("phase_durations_summary.xlsx", index=False)
+    print("Phase duration summary generated: phase_durations_summary.xlsx")
