@@ -1,10 +1,20 @@
-def _calculate_raw_total_time(self, group: pd.DataFrame) -> Optional[float]:
-    """
-    Compute raw time difference between earliest and latest timestamp in the group.
-    """
-    if group['Timestamp'].isnull().all():
-        return None
-    min_ts = group['Timestamp'].min()
-    max_ts = group['Timestamp'].max()
-    duration = (max_ts - min_ts).total_seconds()
-    return round(duration / 86400, 2) if duration > 0 else None
+def calculate_all_phases(self) -> pd.DataFrame:
+    results = []
+
+    for jira_id, group in self.df.groupby('Jira_Id'):
+        row = {'Jira_Id': jira_id}
+        if 'epic_link' in group.columns:
+            row['Epic'] = group['epic_link'].iloc[0]
+
+        total = 0.0
+        for phase_name, (starts, ends) in self.phases.items():
+            duration = self._calculate_multi_cycle_duration(group, starts, ends)
+            row[f"{phase_name} (days)"] = duration
+            if duration is not None:
+                total += duration
+
+        row["Total Time (days)"] = round(total, 2) if total > 0 else None
+        row["Raw Total Time (days)"] = self._calculate_raw_total_time(group)
+        results.append(row)
+
+    return pd.DataFrame(results)
