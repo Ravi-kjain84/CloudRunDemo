@@ -1,13 +1,10 @@
-def write_test_case_block(ws, test_case_id, test_cases):
+def write_test_case_block(ws, test_case_id, evidence, test_cases):
     # Set column widths
     ws.column_dimensions['A'].width = 25
     ws.column_dimensions['B'].width = 60
 
-    # Filter rows matching test_case_id
-    case_rows = test_cases[test_cases['Test Case ID'] == test_case_id]
-
-    if not case_rows.empty:
-        # Write Test Case Information header with test case ID
+    # --- Write Test Case Information block ---
+    if "Test Case Information" in evidence:
         ws.append([f"Test Case Information – {test_case_id}"])
 
         header_cell = ws.cell(row=ws.max_row, column=1)
@@ -16,12 +13,21 @@ def write_test_case_block(ws, test_case_id, test_cases):
         ws.merge_cells(start_row=ws.max_row, start_column=1, end_row=ws.max_row, end_column=2)
         header_cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-        # Write Test Case Description once
-        test_case_description = case_rows.iloc[0].get("Test Case Description", "")
-        ws.append(["Test Case Description", test_case_description])
-        ws.append([])
+        # Write all key-value pairs in Test Case Information
+        for key, value in evidence["Test Case Information"].items():
+            ws.append([key, value])
 
-        # Write Step Table Header
+        # Add Test Case Description (only once)
+        matching_rows = test_cases[test_cases['Test Case ID'] == test_case_id]
+        if not matching_rows.empty:
+            description = matching_rows.iloc[0].get("Test Case Description", "")
+            ws.append(["Test Case Description", description])
+
+        ws.append([])  # Empty row for spacing
+
+    # --- Write Step Table if matching test steps exist ---
+    if not matching_rows.empty:
+        # Header row
         ws.append(["Step Number", "Test Step", "Expected Result", "Result"])
         header_row = ws.max_row
         for col in range(1, 5):
@@ -30,8 +36,8 @@ def write_test_case_block(ws, test_case_id, test_cases):
             cell.fill = PatternFill("solid", fgColor="D2D69E")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-        # Write each test step row
-        for _, row in case_rows.iterrows():
+        # Step rows
+        for _, row in matching_rows.iterrows():
             ws.append([
                 row.get("Step Number", ""),
                 row.get("Test Step", ""),
@@ -39,4 +45,4 @@ def write_test_case_block(ws, test_case_id, test_cases):
                 row.get("Result", "")
             ])
 
-        ws.append([])  # Empty row for spacing
+        ws.append([])  # Empty row after table
