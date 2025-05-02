@@ -1,9 +1,17 @@
 phase_definitions = {
+    # design/build
     "Design Time":        (["Design in progress"], ["Design Complete"]),
     "Build Queue Time":   (["Design Complete"],    ["Build in progress"]),
     "Build Time":         (["Build in progress"],  ["Build Complete"]),
-    "FT Queue Time":      (["Ready for FT"],       ["FT In Progress"]),
+
+    # blocking / test hand-off
+    "Block Time":         (["Blocked / On Hold"],  ["To Test"]),
+
+    # hand-off to FT
+    "FT Queue Time":      (["To Test"],            ["Blocked / On Hold", "Ready for FT"]),
     "FT Time":            (["FT IN PROGRESS"],     ["Blocked / On Hold", "Ready for UAT"]),
-    "Waiting for UAT":    (["Ready for UAT"],      ["UAT IN PROGRESS"]),
+
+    # hand-off to UAT
+    "UAT Queue Time":     (["Ready for UAT"],      ["UAT IN PROGRESS"]),
     "UAT Time":           (["UAT IN PROGRESS"],    ["Closed"]),
 }
