@@ -1,20 +1,9 @@
-def calculate_all_phases(self) -> pd.DataFrame:
-    results = []
-
-    for jira_id, group in self.df.groupby('Jira_Id'):
-        row = {'Jira_Id': jira_id}
-        if 'epic_link' in group.columns:
-            row['Epic'] = group['epic_link'].iloc[0]
-
-        total = 0.0
-        for phase_name, (starts, ends) in self.phases.items():
-            duration = self._calculate_multi_cycle_duration(group, starts, ends)
-            row[f"{phase_name} (days)"] = duration
-            if duration is not None:
-                total += duration
-
-        row["Total Time (days)"] = round(total, 2) if total > 0 else None
-        row["Raw Total Time (days)"] = self._calculate_raw_total_time(group)
-        results.append(row)
-
-    return pd.DataFrame(results)
+phase_definitions = {
+    "Design Time":        (["Design in progress"], ["Design Complete"]),
+    "Build Queue Time":   (["Design Complete"],    ["Build in progress"]),
+    "Build Time":         (["Build in progress"],  ["Build Complete"]),
+    "FT Queue Time":      (["Ready for FT"],       ["FT In Progress"]),
+    "FT Time":            (["FT IN PROGRESS"],     ["Blocked / On Hold", "Ready for UAT"]),
+    "Waiting for UAT":    (["Ready for UAT"],      ["UAT IN PROGRESS"]),
+    "UAT Time":           (["UAT IN PROGRESS"],    ["Closed"]),
+}
