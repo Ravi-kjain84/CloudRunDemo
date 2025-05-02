@@ -1,1 +1,1 @@
-=AND([@[Automation]]="Automated", ISNUMBER(MATCH([@[Extracted Hashtags]], {"#execute_custom_query_bigquery", "#compare_user_count_bigquery"}, 0)))
+=AND([@[Automation]]="Automated", OR([@[Extracted Hashtags]]="#execute_custom_query_bigquery", [@[Extracted Hashtags]]="#compare_user_count_bigquery"))
