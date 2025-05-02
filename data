@@ -1,8 +1,1 @@
-keys = []
-for link in i["fields"].get("issuelinks", []):
-    for direction in ['inwardIssue', 'outwardIssue']:
-        issue = link.get(direction)
-        if issue and "REQ" in issue.get("key", ""):
-            keys.append(issue["key"])
-
-acceptance_criteria1 = ",".join(keys) if keys else None
+=AND([@[Automation]]="Automated", ISNUMBER(MATCH([@[Extracted Hashtags]], {"#execute_custom_query_bigquery", "#compare_user_count_bigquery"}, 0)))
