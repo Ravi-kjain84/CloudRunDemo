@@ -1,24 +1,126 @@
-phase_definitions = {
-    # Design / Build
-    "Design Time":           (["Design in progress"],         ["Design Complete"]),
-    "Build Queue Time":      (["Design Complete"],            ["Build in progress"]),
-    "Build Time":            (["Build in progress"],          ["Build Complete"]),
+import pandas as pd
+from typing import Optional, List, Dict, Tuple
 
-    # Block Time broken into four distinct intervals
-    "Block Time 1":          (["Closed"],                     ["Reopened"]),
-    "Block Time 2":          (["Reopened"],                   ["To Test"]),
-    "Block Time 3":          (["Blocked / On Hold"],          ["To Test"]),
-    "Block Time 4":          (["Testing Blocked"],            ["To Test"]),
+class JiraPhaseDurationTracker:
+    def __init__(
+        self,
+        csv_path: str,
+        phase_definitions: Dict[str, Tuple[List[str], List[str]]]
+    ):
+        self.df = pd.read_csv(csv_path)
+        self.phases = phase_definitions
+        self._prepare()
 
-    # FT Queue broken into two distinct intervals
-    "FT Queue Time 1":       (["To Test"],                    ["Blocked / On Hold"]),
-    "FT Queue Time 2":       (["To Test"],                    ["Ready for FT"]),
+    def _prepare(self):
+        self.df['Timestamp'] = pd.to_datetime(self.df['Timestamp'], errors='coerce')
+        self.df = self.df.sort_values(by=['Jira_Id', 'Timestamp'])
+        self.df = self.df[self.df['Change_Item'].str.lower() == 'status']
 
-    # FT execution broken if you still need two end‐statuses
-    "FT Time 1":             (["FT IN PROGRESS"],             ["Blocked / On Hold"]),
-    "FT Time 2":             (["FT IN PROGRESS"],             ["Ready for UAT"]),
+    def _calculate_multi_cycle_duration(
+        self,
+        group: pd.DataFrame,
+        start_statuses: List[str],
+        end_statuses: List[str]
+    ) -> Optional[float]:
+        total = pd.Timedelta(0)
+        start_time: Optional[pd.Timestamp] = None
 
-    # UAT phases
-    "UAT Queue Time":        (["Ready for UAT"],              ["UAT IN PROGRESS"]),
-    "UAT Time":              (["UAT IN PROGRESS"],            ["Closed"]),
-}
+        starts = {s.upper() for s in start_statuses}
+        ends   = {e.upper() for e in end_statuses}
+
+        for _, row in group.iterrows():
+            status = row['Change_Value'].strip().upper()
+            ts     = row['Timestamp']
+
+            if status in starts and start_time is None:
+                start_time = ts
+            elif status in ends and start_time is not None:
+                total += (ts - start_time)
+                start_time = None
+
+        if total.total_seconds() > 0:
+            return round(total.total_seconds() / 86400, 2)
+        return None
+
+    def _calculate_raw_total_time(self, group: pd.DataFrame) -> Optional[float]:
+        times = group['Timestamp'].dropna()
+        if len(times) < 2:
+            return None
+        span = times.max() - times.min()
+        days = span.total_seconds() / 86400
+        return round(days, 2) if days > 0 else None
+
+    def calculate_all_phases(self) -> pd.DataFrame:
+        results = []
+
+        for jira_id, group in self.df.groupby('Jira_Id'):
+            row = {'Jira_Id': jira_id}
+            if 'epic_link' in group.columns:
+                row['Epic'] = group['epic_link'].iloc[0]
+
+            # compute each phase
+            total_tracked = 0.0
+            for phase_name, (starts, ends) in self.phases.items():
+                duration = self._calculate_multi_cycle_duration(group, starts, ends)
+                row[f"{phase_name} (days)"] = duration
+                if duration is not None:
+                    total_tracked += duration
+
+            # tracked sum
+            row["Total Time (days)"] = round(total_tracked, 2) if total_tracked > 0 else None
+
+            # raw span
+            raw = self._calculate_raw_total_time(group)
+            row["Raw Total Time (days)"] = raw
+
+            # gap
+            if raw is not None and row["Total Time (days)"] is not None:
+                row["Gap Time (days)"] = round(raw - total_tracked, 2)
+            else:
+                row["Gap Time (days)"] = None
+
+            results.append(row)
+
+        return pd.DataFrame(results)
+
+
+if __name__ == "__main__":
+    # -------------------------------------------------------------------
+    # 1) Define each phase with exactly one start → one end status:
+    # -------------------------------------------------------------------
+    phase_definitions = {
+        "Design Time":      (["Design in progress"],    ["Design Complete"]),
+        "Build Queue":      (["Design Complete"],       ["Build in progress"]),
+        "Build Time":       (["Build in progress"],     ["Build Complete"]),
+
+        "Block Time 1":     (["Closed"],                ["Reopened"]),
+        "Block Time 2":     (["Reopened"],              ["To Test"]),
+        "Block Time 3":     (["Blocked / On Hold"],     ["To Test"]),
+        "Block Time 4":     (["Testing Blocked"],       ["To Test"]),
+
+        "FT Queue 1":       (["To Test"],               ["Blocked / On Hold"]),
+        "FT Queue 2":       (["To Test"],               ["Ready for FT"]),
+
+        "FT Time 1":        (["FT IN PROGRESS"],        ["Blocked / On Hold"]),
+        "FT Time 2":        (["FT IN PROGRESS"],        ["Ready for UAT"]),
+
+        "UAT Queue Time":   (["Ready for UAT"],         ["UAT IN PROGRESS"]),
+        "UAT Time":         (["UAT IN PROGRESS"],       ["Closed"]),
+    }
+
+    # -------------------------------------------------------------------
+    # 2) Run tracker and collapse Block Time parts into one column:
+    # -------------------------------------------------------------------
+    tracker = JiraPhaseDurationTracker("jira_logs.csv", phase_definitions)
+    df = tracker.calculate_all_phases()
+
+    # collapse all Block Time parts
+    block_cols = [c for c in df.columns if c.startswith("Block Time") and "(days)" in c]
+    df["Block Time (days)"] = df[block_cols].sum(axis=1)
+    df = df.drop(columns=block_cols)
+
+    # -------------------------------------------------------------------
+    # 3) Export
+    # -------------------------------------------------------------------
+    df.to_excel("phase_durations_summary.xlsx", index=False)
+    print("Phase duration summary generated: phase_durations_summary.xlsx")
