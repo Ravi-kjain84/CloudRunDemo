@@ -1,42 +1,132 @@
+import pandas as pd
+from typing import Optional, List, Dict, Tuple
+
+class JiraPhaseDurationTracker:
+    def __init__(
+        self,
+        csv_path: str,
+        phase_definitions: Dict[str, Tuple[List[str], List[str]]]
+    ):
+        self.df = pd.read_csv(csv_path)
+        self.phases = phase_definitions
+        self._prepare()
+
+    def _prepare(self):
+        # parse & sort, keep only status changes
+        self.df['Timestamp'] = pd.to_datetime(self.df['Timestamp'], errors='coerce')
+        self.df = self.df.sort_values(['Jira_Id','Timestamp'])
+        self.df = self.df[self.df['Change_Item'].str.lower()=='status']
+
+    def _calculate_raw_total_time(self, g: pd.DataFrame) -> Optional[float]:
+        times = g['Timestamp'].dropna()
+        if len(times) < 2:
+            return None
+        span = times.max() - times.min()
+        days = span.total_seconds() / 86400
+        return round(days, 2) if days>0 else None
+
     def calculate_all_phases(self) -> pd.DataFrame:
-        results = []
+        rows_out = []
 
         for jira_id, group in self.df.groupby('Jira_Id'):
             g = group.sort_values('Timestamp', ignore_index=True)
-            
-            # initialize zeroed durations
-            durations = {phase: 0.0 for phase in self.phases}
-            
-            # make a list of rows so we can walk pairwise
-            rows = list(g.itertuples(index=False))
-            for prev, curr in zip(rows, rows[1:]):
-                delta = (curr.Timestamp - prev.Timestamp).total_seconds() / 86400
-                prev_status = prev.Change_Value.strip()
-                curr_status = curr.Change_Value.strip()
 
-                # assign this delta to the first matching phase
+            # initialize every phase to zero
+            durations = {phase: 0.0 for phase in self.phases}
+
+            # walk pairwise through the events
+            tuples = list(g.itertuples(index=False))
+            for prev, curr in zip(tuples, tuples[1:]):
+                delta = (curr.Timestamp - prev.Timestamp).total_seconds() / 86400
+                prev_st = prev.Change_Value.strip()
+                curr_st = curr.Change_Value.strip()
+
+                # assign the delta to the first matching phase
                 for phase, (starts, ends) in self.phases.items():
-                    if prev_status in starts and curr_status in ends:
+                    if prev_st in starts and curr_st in ends:
                         durations[phase] += delta
                         break
 
-            # build the output row
+            # build output row
             row = {'Jira_Id': jira_id}
-            for phase, days in durations.items():
-                val = round(days, 2) if days > 0 else None
-                row[f"{phase} (days)"] = val
+            if 'epic_link' in g.columns:
+                row['Epic'] = g.at[0, 'epic_link']
 
-            # raw span & totals
+            # round each phase and sum tracked
+            tracked = 0.0
+            for phase, total_days in durations.items():
+                val = round(total_days, 2) if total_days>0 else None
+                row[f"{phase} (days)"] = val
+                if val is not None:
+                    tracked += val
+
+            # raw span
             raw = self._calculate_raw_total_time(g)
-            tracked = sum(v for v in durations.values() if v > 0)
-            row["Raw Total Time (days)"]   = raw
-            row["Total Time (days)"]       = round(tracked, 2) if tracked else None
-            row["Gap Time (days)"]         = (
+
+            # total & gap
+            row["Raw Total Time (days)"] = raw
+            row["Total Time (days)"]     = round(tracked, 2) if tracked>0 else None
+            row["Gap Time (days)"]       = (
                 round(raw - tracked, 2)
-                if raw is not None and tracked
+                if raw is not None and tracked>0
                 else None
             )
 
-            results.append(row)
+            rows_out.append(row)
 
-        return pd.DataFrame(results)
+        return pd.DataFrame(rows_out)
+
+
+if __name__ == "__main__":
+    # ----------------------------------------------------------------------------
+    # 1) Your singleton phase definitions
+    # ----------------------------------------------------------------------------
+    phase_definitions = {
+        "Design Time":      (["Design in progress"],    ["Design Complete"]),
+        "Build Queue 1":    (["Design Complete"],       ["Build in progress"]),
+        "Build Time":       (["Build in progress"],     ["Build Complete"]),
+
+        "Block Time 1":     (["Closed"],                ["Reopened"]),
+        "Block Time 2":     (["Reopened"],              ["To Test"]),
+        "Block Time 3":     (["Blocked / On Hold"],     ["To Test"]),
+        "Block Time 4":     (["Testing Blocked"],       ["To Test"]),
+
+        "FT Queue 1":       (["To Test"],               ["Blocked / On Hold"]),
+        "FT Queue 2":       (["To Test"],               ["Ready for FT"]),
+
+        "FT Time 1":        (["FT IN PROGRESS"],        ["Blocked / On Hold"]),
+        "FT Time 2":        (["FT IN PROGRESS"],        ["Ready for UAT"]),
+
+        "UAT Queue Time":   (["Ready for UAT"],         ["UAT IN PROGRESS"]),
+        "UAT Time":         (["UAT IN PROGRESS"],       ["Closed"]),
+    }
+
+    # ----------------------------------------------------------------------------
+    # 2) Run the tracker
+    # ----------------------------------------------------------------------------
+    tracker = JiraPhaseDurationTracker("jira_logs.csv", phase_definitions)
+    df = tracker.calculate_all_phases()
+
+    # ----------------------------------------------------------------------------
+    # 3) Collapse fragments into single columns
+    # ----------------------------------------------------------------------------
+    # Block Time
+    block_cols = [c for c in df.columns if c.startswith("Block Time") and "(days)" in c]
+    df["Block Time (days)"] = df[block_cols].sum(axis=1)
+    df.drop(columns=block_cols, inplace=True)
+
+    # FT Queue Time
+    ftq_cols = [c for c in df.columns if c.startswith("FT Queue") and "(days)" in c]
+    df["FT Queue Time (days)"] = df[ftq_cols].sum(axis=1)
+    df.drop(columns=ftq_cols, inplace=True)
+
+    # FT Time
+    ft_cols = [c for c in df.columns if c.startswith("FT Time") and "(days)" in c]
+    df["FT Time (days)"] = df[ft_cols].sum(axis=1)
+    df.drop(columns=ft_cols, inplace=True)
+
+    # ----------------------------------------------------------------------------
+    # 4) Export with Gap Time intact
+    # ----------------------------------------------------------------------------
+    df.to_excel("phase_durations_summary.xlsx", index=False)
+    print("Done. 'phase_durations_summary.xlsx' contains Total and Gap Time.")
