@@ -1,39 +1,15 @@
-import pandas as pd
-from typing import Optional, List, Dict, Tuple
-
-class JiraPhaseDurationTracker:
-    def __init__(
-        self,
-        csv_path: str,
-        phase_definitions: Dict[str, Tuple[List[str], List[str]]]
-    ):
-        self.df = pd.read_csv(csv_path)
-        self.phases = phase_definitions
-        self._prepare()
-
-    def _prepare(self):
-        self.df['Timestamp'] = pd.to_datetime(self.df['Timestamp'], errors='coerce')
-        self.df = self.df.sort_values(by=['Jira_Id', 'Timestamp'])
-        self.df = self.df[self.df['Change_Item'].str.lower() == 'status']
-
-    def _calculate_raw_total_time(self, group: pd.DataFrame) -> Optional[float]:
-        times = group['Timestamp'].dropna()
-        if len(times) < 2:
-            return None
-        span = times.max() - times.min()
-        days = span.total_seconds() / 86400
-        return round(days, 2) if days > 0 else None
-
     def calculate_all_phases(self) -> pd.DataFrame:
         results = []
 
         for jira_id, group in self.df.groupby('Jira_Id'):
             g = group.sort_values('Timestamp', ignore_index=True)
-            # prepare a zeroed duration for each phase
+            
+            # initialize zeroed durations
             durations = {phase: 0.0 for phase in self.phases}
-
-            # walk pairwise through the events
-            for prev, curr in zip(g.itertuples(), g.itertuples(offset=1)):
+            
+            # make a list of rows so we can walk pairwise
+            rows = list(g.itertuples(index=False))
+            for prev, curr in zip(rows, rows[1:]):
                 delta = (curr.Timestamp - prev.Timestamp).total_seconds() / 86400
                 prev_status = prev.Change_Value.strip()
                 curr_status = curr.Change_Value.strip()
@@ -44,68 +20,23 @@ class JiraPhaseDurationTracker:
                         durations[phase] += delta
                         break
 
-            # build result row
+            # build the output row
             row = {'Jira_Id': jira_id}
-            if 'epic_link' in g.columns:
-                row['Epic'] = g.at[0, 'epic_link']
-
-            # round and store each phase
-            total_tracked = 0.0
             for phase, days in durations.items():
                 val = round(days, 2) if days > 0 else None
                 row[f"{phase} (days)"] = val
-                if val is not None:
-                    total_tracked += val
 
-            # raw span & gap
+            # raw span & totals
             raw = self._calculate_raw_total_time(g)
-            row["Raw Total Time (days)"] = raw
-            row["Total Time (days)"] = round(total_tracked, 2) if total_tracked else None
-            row["Gap Time (days)"] = (
-                round(raw - total_tracked, 2)
-                if raw is not None and total_tracked
+            tracked = sum(v for v in durations.values() if v > 0)
+            row["Raw Total Time (days)"]   = raw
+            row["Total Time (days)"]       = round(tracked, 2) if tracked else None
+            row["Gap Time (days)"]         = (
+                round(raw - tracked, 2)
+                if raw is not None and tracked
                 else None
             )
 
             results.append(row)
 
         return pd.DataFrame(results)
-
-
-if __name__ == "__main__":
-    phase_definitions = {
-        "Design Time":      (["Design in progress"],    ["Design Complete"]),
-        "Build Queue":      (["Design Complete"],       ["Build in progress"]),
-        "Build Time":       (["Build in progress"],     ["Build Complete"]),
-
-        "Block Time 1":     (["Closed"],                ["Reopened"]),
-        "Block Time 2":     (["Reopened"],              ["To Test"]),
-        "Block Time 3":     (["Blocked / On Hold"],     ["To Test"]),
-        "Block Time 4":     (["Testing Blocked"],       ["To Test"]),
-
-        "FT Queue 1":       (["To Test"],               ["Blocked / On Hold"]),
-        "FT Queue 2":       (["To Test"],               ["Ready for FT"]),
-
-        "FT Time 1":        (["FT IN PROGRESS"],        ["Blocked / On Hold"]),
-        "FT Time 2":        (["FT IN PROGRESS"],        ["Ready for UAT"]),
-
-        "UAT Queue Time":   (["Ready for UAT"],         ["UAT IN PROGRESS"]),
-        "UAT Time":         (["UAT IN PROGRESS"],       ["Closed"]),
-    }
-
-    tracker = JiraPhaseDurationTracker("jira_logs.csv", phase_definitions)
-    df = tracker.calculate_all_phases()
-
-    # collapse parts back into single columns as before
-    for prefix, out in [
-        ("Block Time", "Block Time (days)"),
-        ("FT Queue", "FT Queue Time (days)"),
-        ("FT Time",  "FT Time (days)")
-    ]:
-        cols = [c for c in df if c.startswith(prefix) and "(days)" in c]
-        df[out] = df[cols].sum(axis=1)
-        df = df.drop(columns=cols)
-
-    # export
-    df.to_excel("phase_durations_summary.xlsx", index=False)
-    print("Phase duration summary generated: phase_durations_summary.xlsx")
