@@ -1,5 +1,6 @@
-assignee = jira.get("fields", {}).get("assignee")
+# Identifying Jira Acceptance Criteria
+assignee = i.get("fields", {}).get("assignee")
 if assignee and "displayName" in assignee:
-    display_name = assignee["displayName"]
+    acceptance_criteria2 = assignee["displayName"]
 else:
-    display_name = "Unassigned"  # or handle as needed
+    acceptance_criteria2 = None
