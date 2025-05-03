@@ -1,12 +1,28 @@
 phase_definitions = {
-    # … your other phases …
+    # 1) Design & Build (unchanged)
+    "Design Time":        (["Design in progress"], ["Design Complete"]),
+    "Build Queue Time":   (["Design Complete"],    ["Build in progress"]),
+    "Build Time":         (["Build in progress"],  ["Build Complete"]),
 
+    # 2) Block Time: only capture Closed / On Hold / Reopened → To Test
     "Block Time": (
-        # whenever you’re closed, on hold, reopened or testing-blocked
-        ["Closed", "Blocked / On Hold", "Reopened", "Testing Blocked"],
-        # until you next move to “To Test”
+        ["Closed", "Blocked / On Hold", "Reopened"],
         ["To Test"]
     ),
 
-    # … then your FT and UAT phases …
+    # 3) FT queue: now also start on “Testing Blocked”
+    "FT Queue Time": (
+        ["To Test", "Testing Blocked"],
+        ["Blocked / On Hold", "Ready for FT"]
+    ),
+
+    # 4) FT execution (unchanged)
+    "FT Time": (
+        ["FT IN PROGRESS"],
+        ["Blocked / On Hold", "Ready for UAT"]
+    ),
+
+    # 5) UAT queue & execution (unchanged)
+    "UAT Queue Time":     (["Ready for UAT"],      ["UAT IN PROGRESS"]),
+    "UAT Time":           (["UAT IN PROGRESS"],    ["Closed"]),
 }
