@@ -1,11 +1,16 @@
 phase_definitions = {
-    # design/build
+    # design / build
     "Design Time":        (["Design in progress"], ["Design Complete"]),
     "Build Queue Time":   (["Design Complete"],    ["Build in progress"]),
     "Build Time":         (["Build in progress"],  ["Build Complete"]),
 
     # blocking / test hand-off
-    "Block Time":         (["Blocked / On Hold"],  ["To Test"]),
+    "Block Time": (
+        # start whenever you’re blocked or the issue is Closed...
+        ["Blocked / On Hold", "Closed"],
+        # ...and end when you next go “To Test” or get “Reopened”
+        ["To Test", "Reopened"]
+    ),
 
     # hand-off to FT
     "FT Queue Time":      (["To Test"],            ["Blocked / On Hold", "Ready for FT"]),
