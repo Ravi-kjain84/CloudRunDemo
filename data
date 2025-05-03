@@ -1,1 +1,5 @@
-issueFunction in linkedIssuesOf("labels = your-label-name", "relates to") AND issuetype = Epic
+assignee = jira.get("fields", {}).get("assignee")
+if assignee and "displayName" in assignee:
+    display_name = assignee["displayName"]
+else:
+    display_name = "Unassigned"  # or handle as needed
