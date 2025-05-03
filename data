@@ -1,28 +1,24 @@
 phase_definitions = {
-    # 1) Design & Build (unchanged)
-    "Design Time":        (["Design in progress"], ["Design Complete"]),
-    "Build Queue Time":   (["Design Complete"],    ["Build in progress"]),
-    "Build Time":         (["Build in progress"],  ["Build Complete"]),
+    # Design / Build
+    "Design Time":           (["Design in progress"],         ["Design Complete"]),
+    "Build Queue Time":      (["Design Complete"],            ["Build in progress"]),
+    "Build Time":            (["Build in progress"],          ["Build Complete"]),
 
-    # 2) Block Time: only capture Closed / On Hold / Reopened → To Test
-    "Block Time": (
-        ["Closed", "Blocked / On Hold", "Reopened"],
-        ["To Test"]
-    ),
+    # Block Time broken into four distinct intervals
+    "Block Time 1":          (["Closed"],                     ["Reopened"]),
+    "Block Time 2":          (["Reopened"],                   ["To Test"]),
+    "Block Time 3":          (["Blocked / On Hold"],          ["To Test"]),
+    "Block Time 4":          (["Testing Blocked"],            ["To Test"]),
 
-    # 3) FT queue: now also start on “Testing Blocked”
-    "FT Queue Time": (
-        ["To Test", "Testing Blocked"],
-        ["Blocked / On Hold", "Ready for FT"]
-    ),
+    # FT Queue broken into two distinct intervals
+    "FT Queue Time 1":       (["To Test"],                    ["Blocked / On Hold"]),
+    "FT Queue Time 2":       (["To Test"],                    ["Ready for FT"]),
 
-    # 4) FT execution (unchanged)
-    "FT Time": (
-        ["FT IN PROGRESS"],
-        ["Blocked / On Hold", "Ready for UAT"]
-    ),
+    # FT execution broken if you still need two end‐statuses
+    "FT Time 1":             (["FT IN PROGRESS"],             ["Blocked / On Hold"]),
+    "FT Time 2":             (["FT IN PROGRESS"],             ["Ready for UAT"]),
 
-    # 5) UAT queue & execution (unchanged)
-    "UAT Queue Time":     (["Ready for UAT"],      ["UAT IN PROGRESS"]),
-    "UAT Time":           (["UAT IN PROGRESS"],    ["Closed"]),
+    # UAT phases
+    "UAT Queue Time":        (["Ready for UAT"],              ["UAT IN PROGRESS"]),
+    "UAT Time":              (["UAT IN PROGRESS"],            ["Closed"]),
 }
