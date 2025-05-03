@@ -16,32 +16,6 @@ class JiraPhaseDurationTracker:
         self.df = self.df.sort_values(by=['Jira_Id', 'Timestamp'])
         self.df = self.df[self.df['Change_Item'].str.lower() == 'status']
 
-    def _calculate_multi_cycle_duration(
-        self,
-        group: pd.DataFrame,
-        start_statuses: List[str],
-        end_statuses: List[str]
-    ) -> Optional[float]:
-        total = pd.Timedelta(0)
-        start_time: Optional[pd.Timestamp] = None
-
-        starts = {s.upper() for s in start_statuses}
-        ends   = {e.upper() for e in end_statuses}
-
-        for _, row in group.iterrows():
-            status = row['Change_Value'].strip().upper()
-            ts     = row['Timestamp']
-
-            if status in starts and start_time is None:
-                start_time = ts
-            elif status in ends and start_time is not None:
-                total += (ts - start_time)
-                start_time = None
-
-        if total.total_seconds() > 0:
-            return round(total.total_seconds() / 86400, 2)
-        return None
-
     def _calculate_raw_total_time(self, group: pd.DataFrame) -> Optional[float]:
         times = group['Timestamp'].dropna()
         if len(times) < 2:
@@ -54,30 +28,44 @@ class JiraPhaseDurationTracker:
         results = []
 
         for jira_id, group in self.df.groupby('Jira_Id'):
+            g = group.sort_values('Timestamp', ignore_index=True)
+            # prepare a zeroed duration for each phase
+            durations = {phase: 0.0 for phase in self.phases}
+
+            # walk pairwise through the events
+            for prev, curr in zip(g.itertuples(), g.itertuples(offset=1)):
+                delta = (curr.Timestamp - prev.Timestamp).total_seconds() / 86400
+                prev_status = prev.Change_Value.strip()
+                curr_status = curr.Change_Value.strip()
+
+                # assign this delta to the first matching phase
+                for phase, (starts, ends) in self.phases.items():
+                    if prev_status in starts and curr_status in ends:
+                        durations[phase] += delta
+                        break
+
+            # build result row
             row = {'Jira_Id': jira_id}
-            if 'epic_link' in group.columns:
-                row['Epic'] = group['epic_link'].iloc[0]
+            if 'epic_link' in g.columns:
+                row['Epic'] = g.at[0, 'epic_link']
 
-            # compute each phase
+            # round and store each phase
             total_tracked = 0.0
-            for phase_name, (starts, ends) in self.phases.items():
-                duration = self._calculate_multi_cycle_duration(group, starts, ends)
-                row[f"{phase_name} (days)"] = duration
-                if duration is not None:
-                    total_tracked += duration
+            for phase, days in durations.items():
+                val = round(days, 2) if days > 0 else None
+                row[f"{phase} (days)"] = val
+                if val is not None:
+                    total_tracked += val
 
-            # tracked sum
-            row["Total Time (days)"] = round(total_tracked, 2) if total_tracked > 0 else None
-
-            # raw span
-            raw = self._calculate_raw_total_time(group)
+            # raw span & gap
+            raw = self._calculate_raw_total_time(g)
             row["Raw Total Time (days)"] = raw
-
-            # gap
-            if raw is not None and row["Total Time (days)"] is not None:
-                row["Gap Time (days)"] = round(raw - total_tracked, 2)
-            else:
-                row["Gap Time (days)"] = None
+            row["Total Time (days)"] = round(total_tracked, 2) if total_tracked else None
+            row["Gap Time (days)"] = (
+                round(raw - total_tracked, 2)
+                if raw is not None and total_tracked
+                else None
+            )
 
             results.append(row)
 
@@ -85,9 +73,6 @@ class JiraPhaseDurationTracker:
 
 
 if __name__ == "__main__":
-    # -------------------------------------------------------------------
-    # 1) Define each phase with exactly one start → one end status:
-    # -------------------------------------------------------------------
     phase_definitions = {
         "Design Time":      (["Design in progress"],    ["Design Complete"]),
         "Build Queue":      (["Design Complete"],       ["Build in progress"]),
@@ -108,19 +93,19 @@ if __name__ == "__main__":
         "UAT Time":         (["UAT IN PROGRESS"],       ["Closed"]),
     }
 
-    # -------------------------------------------------------------------
-    # 2) Run tracker and collapse Block Time parts into one column:
-    # -------------------------------------------------------------------
     tracker = JiraPhaseDurationTracker("jira_logs.csv", phase_definitions)
     df = tracker.calculate_all_phases()
 
-    # collapse all Block Time parts
-    block_cols = [c for c in df.columns if c.startswith("Block Time") and "(days)" in c]
-    df["Block Time (days)"] = df[block_cols].sum(axis=1)
-    df = df.drop(columns=block_cols)
+    # collapse parts back into single columns as before
+    for prefix, out in [
+        ("Block Time", "Block Time (days)"),
+        ("FT Queue", "FT Queue Time (days)"),
+        ("FT Time",  "FT Time (days)")
+    ]:
+        cols = [c for c in df if c.startswith(prefix) and "(days)" in c]
+        df[out] = df[cols].sum(axis=1)
+        df = df.drop(columns=cols)
 
-    # -------------------------------------------------------------------
-    # 3) Export
-    # -------------------------------------------------------------------
+    # export
     df.to_excel("phase_durations_summary.xlsx", index=False)
     print("Phase duration summary generated: phase_durations_summary.xlsx")
