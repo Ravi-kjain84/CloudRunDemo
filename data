@@ -1,14 +1,137 @@
-    # … after you’ve loaded created_ts …
-    first_status_ts = g['Timestamp'].min()
+import pandas as pd
+from typing import Optional, List, Dict, Tuple
 
-    # strip tzinfo from both
-    if isinstance(created_ts, pd.Timestamp):
-        created_ts = created_ts.tz_localize(None)
-    if isinstance(first_status_ts, pd.Timestamp):
-        first_status_ts = first_status_ts.tz_localize(None)
+class JiraPhaseDurationTracker:
+    def __init__(
+        self,
+        csv_path: str,
+        phase_definitions: Dict[str, Tuple[List[str], List[str]]]
+    ):
+        # 1) Read raw CSV so we still have 'created'
+        self.raw_df = pd.read_csv(csv_path)
+        # 2) Make a working copy for status changes
+        self.df = self.raw_df.copy()
+        self.phases = phase_definitions
+        self._prepare()
 
-    if pd.notna(created_ts) and pd.notna(first_status_ts):
-        delta_first = (first_status_ts - created_ts).total_seconds() / 86400
-        row['Time to First Update (days)'] = round(delta_first, 2)
-    else:
-        row['Time to First Update (days)'] = None
+    def _prepare(self):
+        # parse and clean your status‐change timestamps
+        self.df['Timestamp'] = pd.to_datetime(self.df['Timestamp'], errors='coerce')
+        # keep only status rows
+        self.df = self.df[self.df['Change_Item'].str.lower() == 'status']
+        # sort by issue and time
+        self.df = self.df.sort_values(['Jira_Id','Timestamp'], ignore_index=True)
+
+    def _calculate_raw_total_time(self, g: pd.DataFrame) -> Optional[float]:
+        times = g['Timestamp'].dropna()
+        if len(times) < 2:
+            return None
+        span = times.max() - times.min()
+        return round(span.total_seconds()/86400, 2)
+
+    def calculate_all_phases(self) -> pd.DataFrame:
+        out = []
+
+        for jira_id, group in self.df.groupby('Jira_Id', sort=False):
+            g = group.sort_values('Timestamp', ignore_index=True)
+
+            # —— 1) Extract & clean 'created' for this issue —— 
+            created_ts: Optional[pd.Timestamp] = None
+            if 'created' in self.raw_df.columns:
+                raw_created = (
+                    self.raw_df.loc[self.raw_df['Jira_Id']==jira_id, 'created']
+                    .astype(str)
+                    .iloc[0]
+                )
+                # drop timezone (+0000) and replace 'T' with space
+                cleaned = raw_created.split('+')[0].replace('T',' ')
+                created_ts = pd.to_datetime(cleaned, errors='coerce')
+
+            # —— 2) Pairwise phase durations —— 
+            durations = {phase: 0.0 for phase in self.phases}
+            rows = list(g.itertuples(index=False))
+            for prev, curr in zip(rows, rows[1:]):
+                delta = (curr.Timestamp - prev.Timestamp).total_seconds()/86400
+                pst, cst = prev.Change_Value.strip(), curr.Change_Value.strip()
+                for phase, (starts, ends) in self.phases.items():
+                    if pst in starts and cst in ends:
+                        durations[phase] += delta
+                        break
+
+            # —— 3) Build output row —— 
+            row: Dict[str, Optional[float]] = {'Jira_Id': jira_id}
+
+            # requirement_detail → Requirement_Id
+            if 'requirement_detail' in self.raw_df.columns:
+                reqs = self.raw_df.loc[
+                    self.raw_df['Jira_Id']==jira_id, 'requirement_detail'
+                ].unique()
+                row['Requirement_Id'] = reqs[0] if len(reqs) else None
+
+            # Epic (optional)
+            if 'epic_link' in self.raw_df.columns:
+                epics = self.raw_df.loc[
+                    self.raw_df['Jira_Id']==jira_id, 'epic_link'
+                ].unique()
+                row['Epic'] = epics[0] if len(epics) else None
+
+            # —— 4) Time to First Update —— 
+            if created_ts is not None and not g.empty:
+                first_status_ts = g['Timestamp'].min()
+                # both are naive, so subtraction works
+                delta_first = (first_status_ts - created_ts).total_seconds()/86400
+                row['Time to First Update (days)'] = round(delta_first, 2) if delta_first>0 else 0.0
+            else:
+                row['Time to First Update (days)'] = None
+
+            # —— 5) Round phase durations & sum tracked —— 
+            tracked = 0.0
+            for phase, total in durations.items():
+                val = round(total, 2) if total>0 else None
+                row[f"{phase} (days)"] = val
+                if val is not None:
+                    tracked += val
+
+            # —— 6) Raw total & gap —— 
+            raw = self._calculate_raw_total_time(g)
+            row['Raw Total Time (days)'] = raw
+            row['Total Time (days)']     = round(tracked, 2) if tracked>0 else None
+            row['Gap Time (days)']       = (
+                round(raw - tracked, 2)
+                if raw is not None and tracked>0
+                else None
+            )
+
+            out.append(row)
+
+        return pd.DataFrame(out)
+
+
+if __name__ == "__main__":
+    phase_definitions = {
+        "Design Time":    (["Design in progress"],    ["Design Complete"]),
+        "Build Queue":    (["Design Complete"],       ["Build in progress"]),
+        "Build Time":     (["Build in progress"],     ["Build Complete"]),
+        "Block Time":     (["Closed","Reopened"],     ["To Test"]),
+        "FT Queue":       (["To Test"],               ["Blocked / On Hold","Ready for FT"]),
+        "FT Time":        (["FT IN PROGRESS"],        ["Blocked / On Hold","Ready for UAT"]),
+        "UAT Queue Time": (["Ready for UAT"],         ["UAT IN PROGRESS"]),
+        "UAT Time":       (["UAT IN PROGRESS"],       ["Closed"]),
+    }
+
+    tracker = JiraPhaseDurationTracker("jira_logs.csv", phase_definitions)
+    df = tracker.calculate_all_phases()
+
+    # (Optional) collapse fragments into single columns:
+    for prefix, outcol in [
+        ("Block Time", "Block Time (days)"),
+        ("FT Queue",  "FT Queue Time (days)"),
+        ("FT Time",   "FT Time (days)")
+    ]:
+        parts = [c for c in df if c.startswith(prefix) and "(days)" in c]
+        if parts:
+            df[outcol] = df[parts].sum(axis=1)
+            df.drop(columns=parts, inplace=True)
+
+    df.to_excel("phase_durations_summary.xlsx", index=False)
+    print("Done. Output includes simple parsed 'created' → first‑update delta.") 
