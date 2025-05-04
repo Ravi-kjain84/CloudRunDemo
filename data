@@ -1,28 +1,36 @@
 import pandas as pd
 
-# Assuming df is your full Jira log DataFrame
+# Step 1: Define fallback-based UAT timestamp for each Epic
+def get_earliest_status(epic_id, status_df):
+    # Filter all rows for the given Epic ID and status changes
+    epic_rows = status_df[status_df['jira_id'] == epic_id]
+    
+    for status in ['Ready for UAT', 'FT IN PROGRESS', 'Ready for FT']:
+        match = epic_rows[epic_rows['change_value'].str.upper() == status.upper()]
+        if not match.empty:
+            return pd.to_datetime(match.iloc[0]['timestamp'])  # earliest match found
+    return pd.NaT  # No match found
 
-# Step 1: Get all Epic -> "Ready for UAT" timestamps
-uat_ready_map = (
-    df[(df['issue_type'] == 'Epic') &
-       (df['change_item'] == 'status') &
-       (df['change_value'] == 'Ready for UAT')]
-    [['jira_id', 'timestamp']]
-    .drop_duplicates('jira_id')
-    .set_index('jira_id')['timestamp']
-    .to_dict()
-)
+# Step 2: Filter status logs for Epics only
+epic_status_df = df[(df['issue_type'] == 'Epic') & (df['change_item'] == 'status')]
 
-# Step 2: Apply classification to each Bug
+# Step 3: Build Epic -> UAT Phase Start Time mapping
+uat_fallback_map = {
+    epic_id: get_earliest_status(epic_id, epic_status_df)
+    for epic_id in epic_status_df['jira_id'].unique()
+}
+
+# Step 4: Classify Bug creation timing
 def classify_bug(row):
     if row['issue_type'] != 'Bug':
-        return ''  # Only tag Bugs
+        return ''
     epic = row['epic_link']
     created = pd.to_datetime(row['orig_created'])
-    uat_time = pd.to_datetime(uat_ready_map.get(epic, pd.NaT))
-    if pd.isna(uat_time):
-        return 'No UAT Info'
-    return 'Created After UAT' if created > uat_time else 'Created Before UAT'
+    uat_start = uat_fallback_map.get(epic, pd.NaT)
+    
+    if pd.isna(uat_start):
+        return 'No UAT Phase Info'
+    return 'Created After UAT' if created > uat_start else 'Created Before UAT'
 
-# Step 3: Apply and store in new column
+# Step 5: Apply classification
 df['uat_creation_flag'] = df.apply(classify_bug, axis=1)
