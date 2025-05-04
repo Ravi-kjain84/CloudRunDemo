@@ -1,7 +1,40 @@
-# Clean column names before writing to CSV
-df.columns = df.columns.str.replace(' ', '_') \
-                       .str.replace('(', '', regex=False) \
-                       .str.replace(')', '', regex=False)
+import os
+from google.cloud import bigquery
+import google.auth
 
-# Now write to CSV
-df.to_csv('your_output_file.csv', index=False)
+# Setup Proxy
+os.environ["HTTP_PROXY"] = "googleapis-dev.gcp.cloud.uk.hsbc:3128"
+os.environ["HTTPS_PROXY"] = "googleapis-dev.gcp.cloud.uk.hsbc:3128"
+
+# Setup Environment
+project = "hsbc-9093058-rwapc52-dev"
+gcp_envs = "hsbc-9093058-rwapc52-dev.region-europe-west2"
+
+# Authenticate
+credentials, _ = google.auth.default()
+authed_http = google.auth.transport.requests.AuthorizedSession(credentials)
+
+client = bigquery.Client(credentials=credentials, project=project)
+
+# Upload Function
+def upload_csv_to_bq(csv_file_path, bq_table_name):
+    table_id = f"{project}.log_ds.{bq_table_name}"
+    
+    job_config = bigquery.LoadJobConfig(
+        source_format=bigquery.SourceFormat.CSV,
+        skip_leading_rows=1,
+        autodetect=True,
+        create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
+    )
+    
+    with open(csv_file_path, "rb") as file:
+        load_job = client.load_table_from_file(file, table_id, job_config=job_config)
+    
+    print(f"Started job {load_job.job_id} for {csv_file_path} -> {bq_table_name}")
+    load_job.result()  # Waits for the job to complete
+    print(f"Upload complete: {csv_file_path} to {table_id}")
+
+# Example usage for two files
+upload_csv_to_bq("phase_durations_summary.csv", "RJ_jira_table_new")
+upload_csv_to_bq("second_file.csv", "RJ_jira_table_old")
