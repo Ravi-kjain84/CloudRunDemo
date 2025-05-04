@@ -1,27 +1,26 @@
 import csv
+import pandas as pd
 import GetJiras
 from jira_details import header
 from datetime import datetime
 
+# Step 1: Fetch data
 jira_logger = GetJiras.jira_history_logger()
 
-# Clean the 'created' field
-for row in jira_logger:
-    if 'created' in row and row['created']:
-        # Replace 'T' and convert to proper format
-        row['created'] = row['created'].replace('T', ' ')
-        try:
-            dt = datetime.strptime(row['created'], "%Y-%m-%d %H:%M:%S.%f%z")
-            row['created'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-        except ValueError:
-            try:
-                dt = datetime.strptime(row['created'], "%Y-%m-%d %H:%M:%S%z")
-                row['created'] = dt.strftime('%Y-%m-%d %H:%M:%S')
-            except:
-                row['created'] = ''  # fallback if parsing fails
+# Step 2: Combine header and data into a DataFrame
+df = pd.DataFrame(jira_logger, columns=header)
 
-# Write to CSV
-with open("jira_logs.csv", 'w', newline='') as f:
-    writer = csv.DictWriter(f, fieldnames=header, delimiter=',')
-    writer.writeheader()
-    writer.writerows(jira_logger)
+# Step 3: Clean up 'created' column
+if 'created' in df.columns:
+    df['created'] = df['created'].astype(str).str.replace('T', ' ', regex=False)
+
+    def parse_created(val):
+        try:
+            return pd.to_datetime(val, utc=True).strftime('%Y-%m-%d %H:%M:%S')
+        except:
+            return ''
+    
+    df['created'] = df['created'].apply(parse_created)
+
+# Step 4: Write to CSV
+df.to_csv("jira_logs.csv", index=False, sep=",")
