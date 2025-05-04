@@ -1,1 +1,28 @@
-List.Sum(List.FirstN(#"Previous Step"[Count], [Index]))
+import pandas as pd
+
+# Assuming df is your full Jira log DataFrame
+
+# Step 1: Get all Epic -> "Ready for UAT" timestamps
+uat_ready_map = (
+    df[(df['issue_type'] == 'Epic') &
+       (df['change_item'] == 'status') &
+       (df['change_value'] == 'Ready for UAT')]
+    [['jira_id', 'timestamp']]
+    .drop_duplicates('jira_id')
+    .set_index('jira_id')['timestamp']
+    .to_dict()
+)
+
+# Step 2: Apply classification to each Bug
+def classify_bug(row):
+    if row['issue_type'] != 'Bug':
+        return ''  # Only tag Bugs
+    epic = row['epic_link']
+    created = pd.to_datetime(row['orig_created'])
+    uat_time = pd.to_datetime(uat_ready_map.get(epic, pd.NaT))
+    if pd.isna(uat_time):
+        return 'No UAT Info'
+    return 'Created After UAT' if created > uat_time else 'Created Before UAT'
+
+# Step 3: Apply and store in new column
+df['uat_creation_flag'] = df.apply(classify_bug, axis=1)
