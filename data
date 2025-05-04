@@ -10,17 +10,18 @@ jira_logger = GetJiras.jira_history_logger()
 # Step 2: Combine header and data into a DataFrame
 df = pd.DataFrame(jira_logger, columns=header)
 
-# Step 3: Clean up 'created' column
-if 'created' in df.columns:
-    df['created'] = df['created'].astype(str).str.replace('T', ' ', regex=False)
+# Step 3: Define a parser function
+def clean_timestamp(val):
+    try:
+        val = str(val).replace('T', ' ')
+        return pd.to_datetime(val, utc=True).strftime('%Y-%m-%d %H:%M:%S')
+    except:
+        return ''
 
-    def parse_created(val):
-        try:
-            return pd.to_datetime(val, utc=True).strftime('%Y-%m-%d %H:%M:%S')
-        except:
-            return ''
-    
-    df['created'] = df['created'].apply(parse_created)
+# Step 4: Clean 'created' and 'Timestamp' columns
+for col in ['created', 'Timestamp']:
+    if col in df.columns:
+        df[col] = df[col].apply(clean_timestamp)
 
-# Step 4: Write to CSV
+# Step 5: Write to CSV
 df.to_csv("jira_logs.csv", index=False, sep=",")
