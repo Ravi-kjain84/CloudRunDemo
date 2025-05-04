@@ -1,1 +1,7 @@
-issueFunction in issuesInEpics("labels = your_label") AND issuetype = Bug
+# Clean column names before writing to CSV
+df.columns = df.columns.str.replace(' ', '_') \
+                       .str.replace('(', '', regex=False) \
+                       .str.replace(')', '', regex=False)
+
+# Now write to CSV
+df.to_csv('your_output_file.csv', index=False)
