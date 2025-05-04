@@ -1,9 +1,27 @@
-import pandas as pd
+import csv
+import GetJiras
+from jira_details import header
+from datetime import datetime
 
-# Sample: df is your DataFrame
-# Replace 'T' with space and convert to datetime with UTC offset handled
-df['created'] = df['created'].str.replace('T', ' ', regex=False)
-df['created'] = pd.to_datetime(df['created'], errors='coerce', utc=True)
+jira_logger = GetJiras.jira_history_logger()
 
-# Optionally convert to string format BigQuery likes (e.g. 'YYYY-MM-DD HH:MM:SS')
-df['created'] = df['created'].dt.strftime('%Y-%m-%d %H:%M:%S')
+# Clean the 'created' field
+for row in jira_logger:
+    if 'created' in row and row['created']:
+        # Replace 'T' and convert to proper format
+        row['created'] = row['created'].replace('T', ' ')
+        try:
+            dt = datetime.strptime(row['created'], "%Y-%m-%d %H:%M:%S.%f%z")
+            row['created'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                dt = datetime.strptime(row['created'], "%Y-%m-%d %H:%M:%S%z")
+                row['created'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+            except:
+                row['created'] = ''  # fallback if parsing fails
+
+# Write to CSV
+with open("jira_logs.csv", 'w', newline='') as f:
+    writer = csv.DictWriter(f, fieldnames=header, delimiter=',')
+    writer.writeheader()
+    writer.writerows(jira_logger)
