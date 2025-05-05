@@ -1,12 +1,36 @@
-SELECT cl.jira_id,
-       cl.change_value AS latest_status,
-       cl.timestamp
-FROM change_log cl
-JOIN (
-    SELECT jira_id, MAX(timestamp) AS max_timestamp
-    FROM change_log
-    WHERE change_type = 'Status'
-    GROUP BY jira_id
-) latest
-ON cl.jira_id = latest.jira_id AND cl.timestamp = latest.max_timestamp
-WHERE cl.change_type = 'Status';
+import subprocess
+import sys
+from datetime import datetime
+
+def run_script(script_name):
+    print(f"\n[{datetime.now()}] Running script: {script_name}")
+    result = subprocess.run([sys.executable, script_name], capture_output=True, text=True)
+
+    if result.returncode == 0:
+        print(f"[{datetime.now()}] {script_name} completed successfully.")
+    else:
+        print(f"[{datetime.now()}] ERROR: {script_name} failed.")
+        print("----- STDERR -----")
+        print(result.stderr)
+        print("----- STDOUT -----")
+        print(result.stdout)
+        sys.exit(1)
+
+def print_environment_info():
+    print(f"Python executable in use: {sys.executable}")
+    try:
+        import pandas
+        print(f"Pandas version: {pandas.__version__}")
+    except ImportError:
+        print("ERROR: 'pandas' is not installed in this environment.")
+        sys.exit(1)
+
+# Main Execution
+print_environment_info()
+
+# Run scripts in order
+run_script("jira_csv_writer.py")
+run_script("JIRA_KPIs_04.py")
+run_script("bq_loader_modular.py")
+
+print("\nAll scripts ran successfully.")
