@@ -1,6 +1,5 @@
-# somewhere inside your issue‐loop, e.g. for i in issues:
-labels_list = i["fields"].get("labels", [])
-if labels_list:
-    labels_str = ", ".join(labels_list)
-else:
-    labels_str = None
+CASE
+  WHEN REGEXP_MATCH( Labels, "(^|,\\s*)Automated($|,)" )
+  THEN "Yes"
+  ELSE "No"
+END
