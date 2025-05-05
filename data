@@ -1,13 +1,18 @@
-SELECT *,
-       CASE 
-           WHEN Timestamp = latest_status_ts THEN 'Yes'
-           ELSE 'No'
-       END AS latest_status_flag
-FROM (
-    SELECT *,
-           MAX(Timestamp) OVER (PARTITION BY Jira_Id 
-                                ORDER BY Timestamp DESC 
-                                ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS latest_status_ts
-    FROM `hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_logs`
-    WHERE Change_Item = 'status'
-)
+import subprocess
+
+def run_script(script_name):
+    print(f"Running {script_name}...")
+    result = subprocess.run(["python", script_name], capture_output=True, text=True)
+
+    if result.returncode == 0:
+        print(f"{script_name} completed successfully.")
+    else:
+        print(f"{script_name} failed with error:\n{result.stderr}")
+        exit(1)
+
+# Run scripts in order
+run_script("jira_csv_writer.py")
+run_script("JIRA_KPIs_04.py")
+run_script("bq_loader_modular.py")
+
+print("\nAll scripts ran successfully.")
