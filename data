@@ -1,12 +1,61 @@
-for _, row in matching_rows.iterrows():
-    ws.append([
-        row.get("Step Number", ""),
-        row.get("Test Step", ""),
-        row.get("Expected Result", ""),
-        row.get("Result", "")
-    ])
-    
-    current_row = ws.max_row
-    for col in range(1, 5):
-        cell = ws.cell(row=current_row, column=col)
-        cell.alignment = Alignment(wrap_text=True)
+from google.cloud import bigquery
+from google.api_core.exceptions import NotFound
+import csv
+
+def upload_csv_to_bq(csv_file_path: str, bq_table_name: str):
+    """
+    Uploads a local CSV to BigQuery, appending if the schema matches,
+    or truncating & reloading if it doesn’t.  After an append, runs
+    a DISTINCT‐based dedupe so you never get identical rows twice.
+    """
+    client = bigquery.Client()
+    table_ref = bigquery.TableReference.from_string(bq_table_name)
+    dataset_ref = table_ref.dataset_id
+    table_id    = table_ref.table_id
+
+    # 1) Does table already exist?
+    try:
+        table = client.get_table(table_ref)
+        table_exists = True
+    except NotFound:
+        table_exists = False
+
+    # 2) Read CSV header
+    with open(csv_file_path, newline="") as f:
+        reader = csv.reader(f)
+        csv_header = next(reader)
+
+    # 3) Decide write disposition
+    if not table_exists:
+        write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
+    else:
+        # compare column names (order matters here)
+        existing_cols = [field.name for field in table.schema]
+        if existing_cols == csv_header:
+            write_disp = bigquery.WriteDisposition.WRITE_APPEND
+        else:
+            write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
+
+    job_config = bigquery.LoadJobConfig(
+        skip_leading_rows=1,
+        source_format=bigquery.SourceFormat.CSV,
+        autodetect=True,
+        write_disposition=write_disp,
+        create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED
+    )
+
+    # 4) Load the data
+    with open(csv_file_path, "rb") as source_file:
+        load_job = client.load_table_from_file(source_file, table_ref, job_config=job_config)
+    load_job.result()
+
+    # 5) If we just appended, dedupe existing rows
+    if table_exists and write_disp == bigquery.WriteDisposition.WRITE_APPEND:
+        dedupe_sql = f"""
+        CREATE OR REPLACE TABLE `{bq_table_name}` AS
+        SELECT DISTINCT * 
+        FROM `{bq_table_name}`;
+        """
+        client.query(dedupe_sql).result()
+
+    print(f"Load complete.  Disposition={write_disp}.")
