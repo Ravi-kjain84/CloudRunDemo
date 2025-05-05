@@ -1,13 +1,12 @@
-SELECT *,
-  TRIM(SUBSTR(filter_label, STRPOS(filter_label, ":") + 1)) AS release_label,
-  CASE
-    WHEN Timestamp = latest_status_ts THEN 'Yes'
-    ELSE 'No'
-  END AS latest_status_flag
-FROM (
-  SELECT *,
-    MAX(CASE WHEN Change_Item = 'status' THEN Timestamp END) 
-      OVER (PARTITION BY Jira_Id ORDER BY Timestamp DESC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS latest_status_ts
-  FROM `hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_logs`
-)
+SELECT cl.jira_id,
+       cl.change_value AS latest_status,
+       cl.timestamp
+FROM change_log cl
+JOIN (
+    SELECT jira_id, MAX(timestamp) AS max_timestamp
+    FROM change_log
+    WHERE change_type = 'Status'
+    GROUP BY jira_id
+) latest
+ON cl.jira_id = latest.jira_id AND cl.timestamp = latest.max_timestamp
+WHERE cl.change_type = 'Status';
