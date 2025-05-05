@@ -1,33 +1,140 @@
-SELECT
+SELECT 
   Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
   Epic,
-  Phase,
-  Duration_days
-FROM
-  `your-project.your_dataset.jira_phase_durations`
-UNPIVOT (
-  Duration_days FOR Phase IN (
-     Block_Time_days    AS "Block Time",
-     Build_Queue_days   AS "Build Queue",
-     Build_Time_days    AS "Build Time",
-     FT_Queue_Time_days AS "FT Queue",
-     FT_Time_days       AS "FT Time",
-     UAT_Queue_Time_days AS "UAT Queue",
-     UAT_Time_days      AS "UAT Time"
-  )
-)
+  'Design Time' AS Phase,
+  Design_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
 
+UNION ALL
 
-SELECT Jira_Id, Epic, "Block Time"     AS Phase, Block_Time_days    AS Duration_days FROM `…`
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'Build Queue' AS Phase,
+  Build_Queue_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
 UNION ALL
-SELECT Jira_Id, Epic, "Build Queue"    AS Phase, Build_Queue_days   AS Duration_days FROM `…`
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'Build Time' AS Phase,
+  Build_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
 UNION ALL
-SELECT Jira_Id, Epic, "Build Time"     AS Phase, Build_Time_days    AS Duration_days FROM `…`
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'UAT Queue Time' AS Phase,
+  UAT_Queue_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
 UNION ALL
-SELECT Jira_Id, Epic, "FT Queue"       AS Phase, FT_Queue_Time_days AS Duration_days FROM `…`
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'UAT Time' AS Phase,
+  UAT_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
 UNION ALL
-SELECT Jira_Id, Epic, "FT Time"        AS Phase, FT_Time_days       AS Duration_days FROM `…`
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'Raw Total Time' AS Phase,
+  Raw_Total_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
 UNION ALL
-SELECT Jira_Id, Epic, "UAT Queue"      AS Phase, UAT_Queue_Time_days AS Duration_days FROM `…`
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'Total Time' AS Phase,
+  Total_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
 UNION ALL
-SELECT Jira_Id, Epic, "UAT Time"       AS Phase, UAT_Time_days      AS Duration_days FROM `…`
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'Gap Time' AS Phase,
+  Gap_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
+UNION ALL
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'Block Time' AS Phase,
+  Block_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
+UNION ALL
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'FT Queue Time' AS Phase,
+  FT_Queue_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new
+
+UNION ALL
+
+SELECT 
+  Jira_Id,
+  issue_type,
+  Requirement_Id,
+  label,
+  Filter_Label,
+  Epic,
+  'FT Time' AS Phase,
+  FT_Time_days AS Duration_days
+FROM hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_table_new;
