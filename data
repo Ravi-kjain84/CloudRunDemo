@@ -1,5 +1,33 @@
-CASE
-  WHEN REGEXP_MATCH( Labels, "(^|,\\s*)Automated($|,)" )
-  THEN "Yes"
-  ELSE "No"
-END
+SELECT
+  Jira_Id,
+  Epic,
+  Phase,
+  Duration_days
+FROM
+  `your-project.your_dataset.jira_phase_durations`
+UNPIVOT (
+  Duration_days FOR Phase IN (
+     Block_Time_days    AS "Block Time",
+     Build_Queue_days   AS "Build Queue",
+     Build_Time_days    AS "Build Time",
+     FT_Queue_Time_days AS "FT Queue",
+     FT_Time_days       AS "FT Time",
+     UAT_Queue_Time_days AS "UAT Queue",
+     UAT_Time_days      AS "UAT Time"
+  )
+)
+
+
+SELECT Jira_Id, Epic, "Block Time"     AS Phase, Block_Time_days    AS Duration_days FROM `…`
+UNION ALL
+SELECT Jira_Id, Epic, "Build Queue"    AS Phase, Build_Queue_days   AS Duration_days FROM `…`
+UNION ALL
+SELECT Jira_Id, Epic, "Build Time"     AS Phase, Build_Time_days    AS Duration_days FROM `…`
+UNION ALL
+SELECT Jira_Id, Epic, "FT Queue"       AS Phase, FT_Queue_Time_days AS Duration_days FROM `…`
+UNION ALL
+SELECT Jira_Id, Epic, "FT Time"        AS Phase, FT_Time_days       AS Duration_days FROM `…`
+UNION ALL
+SELECT Jira_Id, Epic, "UAT Queue"      AS Phase, UAT_Queue_Time_days AS Duration_days FROM `…`
+UNION ALL
+SELECT Jira_Id, Epic, "UAT Time"       AS Phase, UAT_Time_days      AS Duration_days FROM `…`
