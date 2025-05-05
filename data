@@ -1,36 +1,13 @@
-import pandas as pd
-
-# Step 1: Extract 'Ready for FT' timestamps from Epic status logs
-def extract_ready_for_ft(epic_status_df):
-    ft_map = (
-        epic_status_df[
-            (epic_status_df['change_item'] == 'status') &
-            (epic_status_df['change_value'].str.upper() == 'READY FOR FT')
-        ][['jira_id', 'timestamp']]
-        .drop_duplicates('jira_id')
-        .set_index('jira_id')['timestamp']
-        .apply(pd.to_datetime)
-        .to_dict()
-    )
-    return ft_map
-
-# Step 2: Filter to Epic status logs
-epic_status_df = df[(df['issue_type'] == 'Epic')]
-
-# Step 3: Build Epic -> Ready for FT map
-ready_ft_map = extract_ready_for_ft(epic_status_df)
-
-# Step 4: Classify Test cases
-def classify_test_case(row):
-    if row['issue_type'] != 'Test':
-        return ''
-    epic_id = row['epic_link']
-    created_time = pd.to_datetime(row['orig_created'])
-    ft_ready_time = ready_ft_map.get(epic_id, pd.NaT)
-    
-    if pd.isna(ft_ready_time):
-        return 'No FT Info'
-    return 'Created After FT' if created_time > ft_ready_time else 'Created Before FT'
-
-# Step 5: Apply the classification
-df['ft_creation_flag'] = df.apply(classify_test_case, axis=1)
+SELECT *,
+       CASE 
+           WHEN Timestamp = latest_status_ts THEN 'Yes'
+           ELSE 'No'
+       END AS latest_status_flag
+FROM (
+    SELECT *,
+           MAX(Timestamp) OVER (PARTITION BY Jira_Id 
+                                ORDER BY Timestamp DESC 
+                                ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS latest_status_ts
+    FROM `hsbc-9093058-rwapc52-dev.log_ds.RJ_jira_logs`
+    WHERE Change_Item = 'status'
+)
