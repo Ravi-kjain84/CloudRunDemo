@@ -1,61 +1,83 @@
+import os
+import csv
+import google.auth
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
-import csv
+
+# ─── 1) Proxy (if you need one) ────────────────────────────────────────────────
+os.environ["HTTP_PROXY"]  = "googleapis-dev.gcp.cloud.uk.hsbc:3128"
+os.environ["HTTPS_PROXY"] = "googleapis-dev.gcp.cloud.uk.hsbc:3128"
+
+# ─── 2) Environment & Authentication ──────────────────────────────────────────
+project = "hsbc-9093058-rwapc52-dev"  # your GCP project ID
+credentials, _ = google.auth.default()
+client = bigquery.Client(credentials=credentials, project=project)
+
+# ─── 3) Upload Function ───────────────────────────────────────────────────────
 
 def upload_csv_to_bq(csv_file_path: str, bq_table_name: str):
     """
-    Uploads a local CSV to BigQuery, appending if the schema matches,
-    or truncating & reloading if it doesn’t.  After an append, runs
-    a DISTINCT‐based dedupe so you never get identical rows twice.
+    Load a local CSV into BigQuery, appending if schemas match or
+    truncating & reloading if they differ. After an append, dedupe
+    the table so exact-row duplicates are never introduced.
     """
-    client = bigquery.Client()
-    table_ref = bigquery.TableReference.from_string(bq_table_name)
-    dataset_ref = table_ref.dataset_id
-    table_id    = table_ref.table_id
+    # Fully qualified table ID
+    table_id = f"{project}.log_ds.{bq_table_name}"
 
-    # 1) Does table already exist?
+    # 3.1) Check if the table already exists
     try:
-        table = client.get_table(table_ref)
+        table = client.get_table(table_id)
         table_exists = True
     except NotFound:
         table_exists = False
 
-    # 2) Read CSV header
-    with open(csv_file_path, newline="") as f:
-        reader = csv.reader(f)
+    # 3.2) Read the CSV header row
+    with open(csv_file_path, newline="") as csvfile:
+        reader     = csv.reader(csvfile)
         csv_header = next(reader)
 
-    # 3) Decide write disposition
+    # 3.3) Decide WriteDisposition
     if not table_exists:
         write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
     else:
-        # compare column names (order matters here)
+        # Compare column names in order
         existing_cols = [field.name for field in table.schema]
         if existing_cols == csv_header:
             write_disp = bigquery.WriteDisposition.WRITE_APPEND
         else:
             write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
 
+    # 3.4) Configure the load job
     job_config = bigquery.LoadJobConfig(
-        skip_leading_rows=1,
-        source_format=bigquery.SourceFormat.CSV,
-        autodetect=True,
-        write_disposition=write_disp,
-        create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED
+        skip_leading_rows   = 1,
+        source_format       = bigquery.SourceFormat.CSV,
+        autodetect          = True,
+        create_disposition  = bigquery.CreateDisposition.CREATE_IF_NEEDED,
+        write_disposition   = write_disp
     )
 
-    # 4) Load the data
+    # 3.5) Run the load
     with open(csv_file_path, "rb") as source_file:
-        load_job = client.load_table_from_file(source_file, table_ref, job_config=job_config)
+        load_job = client.load_table_from_file(
+            source_file,
+            table_id,
+            job_config=job_config
+        )
+    print(f"Started load job {load_job.job_id} for {csv_file_path} → {table_id} ({write_disp})")
     load_job.result()
+    print("Load complete.")
 
-    # 5) If we just appended, dedupe existing rows
+    # 3.6) If we appended, dedupe exact duplicates
     if table_exists and write_disp == bigquery.WriteDisposition.WRITE_APPEND:
         dedupe_sql = f"""
-        CREATE OR REPLACE TABLE `{bq_table_name}` AS
-        SELECT DISTINCT * 
-        FROM `{bq_table_name}`;
+        CREATE OR REPLACE TABLE `{table_id}` AS
+        SELECT DISTINCT *
+        FROM `{table_id}`;
         """
         client.query(dedupe_sql).result()
+        print("Deduplication complete.")
 
-    print(f"Load complete.  Disposition={write_disp}.")
+# ─── 4) Example Usage ─────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    upload_csv_to_bq("phase_durations_summary.csv", "RJ_jira_table_new")
+    upload_csv_to_bq("jira_logs.csv",                "RJ_jira_logs")
