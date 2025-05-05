@@ -1,17 +1,12 @@
-def process_test_case(row):
-    test_case_type = str(row["Test Case Type"]).strip().lower()
-    scenario = str(row["Extracted Hashtags"]).strip().lower()
-
-    print(f"Test Case Type: {test_case_type}, Scenario: {scenario}")
-
-    if test_case_type == "manual":
-        print("Function: placeholder (Manual override)")
-        return placeholder(row)
-
-    for keyword, function in PROCESSORS.items():
-        if keyword in scenario:
-            print(f"Function: {function.__name__}")
-            result = function(row)
-            return result
-
-    return "process_skipped"
+for _, row in matching_rows.iterrows():
+    ws.append([
+        row.get("Step Number", ""),
+        row.get("Test Step", ""),
+        row.get("Expected Result", ""),
+        row.get("Result", "")
+    ])
+    
+    current_row = ws.max_row
+    for col in range(1, 5):
+        cell = ws.cell(row=current_row, column=col)
+        cell.alignment = Alignment(wrap_text=True)
