@@ -1,12 +1,70 @@
-Certainly. Here is the refined version with each point limited to 6–7 words:
+Based on your detailed walkthrough, here is a clear and structured flow diagram breakdown with recommended blocks and connectors for your video:
 
 ⸻
 
-	•	JIRA-linked dashboard for real-time KPIs
-	•	Change volume across key test artifacts
-	•	Track KPIs vs defined target benchmarks
-	•	Visualize effort trends and defect phases
+Suggested Flow Diagram Blocks and Sequence
+	1.	Download Requirements
+	•	Run JIRA Filter Query
+	•	Export to Excel Format
+	2.	Test Case Template Preparation
+	•	Open Hashtag Template
+	•	Select Standard Test Cases (Manual/Automated)
+	•	Update Template with New Validated Hashtags (if any)
+	3.	Requirement Analysis
+	•	Review Design/ETL Docs
+	•	Analyze Data Lineage / Process Maps
+	•	Optional: Connect with Requirement Owner
+	4.	Generate Intermediate Test Cases
+	•	Click Intermediate Sheet Button
+	•	Review & Modify Test Cases
+	•	Add Project/Table Info for Test Data Dictionary
+	5.	Test Case Finalization
+	•	Click Finalize Test Cases Button
+	•	Run Dry Run Script (Python)
+	•	Manual: Generate Standard Evidence
+	•	Automated: Execute Test Cases & Save Results
+	6.	Test Case Review
+	•	Request Review
+	•	Label Auto-Added (Manual/Automated)
+	•	Reviewer Approval
+	7.	Upload to JIRA
+	•	Use Upload-Ready Template File
+	•	Open Upload File & Refresh
+	•	Upload to JIRA
+	•	Save Query as “Last 15-Min Upload”
+	8.	Release Planning
+	•	Create Release Plan in JIRA
+	•	Create Sprint & Add Test Cases
+	9.	Testing Dashboard Validation
+	•	Auto-Refreshed Dashboard for Batch Testing
+	•	Granular Check with SQL via BigQuery
+	10.	Defect & Evidence Handling
+	•	Update Evidence File (Pass/Fail)
+	•	Attach Evidence
+	•	Create & Link Defects to Failed Test Cases
+	11.	Live KPI Dashboard
+	•	Monitor KPIs Linked to JIRA
+	•	Track Targets Across Environments
+	12.	Strategy Fulfillment
+	•	Trace Strategy Guidelines via KPIs
+	•	Prepare for Phase 3: GenAI-Based Automation
 
 ⸻
 
-Would you like these styled as bullet points with icons or kept plain for consistency?
+Connectivity Guidance
+
+Use arrows to indicate the flow in this linear path, with dotted lines to show optional/future enhancements (e.g., GenAI automation). Example:
+	•	→ for sequential steps
+	•	---→ for optional/future steps (e.g., GenAI test case creation)
+
+⸻
+
+Optional Icons (if using PowerPoint/Visio)
+	•	Excel symbol for templates
+	•	JIRA logo for queries/uploads
+	•	Python icon for dry run script
+	•	Dashboard icon for visualization
+
+⸻
+
+Would you like a PowerPoint-ready visual version of this flow with icons and connectors?
