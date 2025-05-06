@@ -1,38 +1,12 @@
-def add_traceability_flags(df):
-    # Clean and prepare
-    df['epic_link'] = df['epic_link'].astype(str).str.strip()
-    df['requirement_detail'] = df['requirement_detail'].astype(str).str.strip()
-    df['issue_type'] = df['issue_type'].astype(str).str.strip()
-    df['issuelink'] = df['issuelink'].astype(str).str.strip()
+Certainly. Here is the refined version with each point limited to 6–7 words:
 
-    # Create lookup dictionary: Jira_Id -> (issue_type, requirement_detail)
-    issue_type_lookup = df.set_index('Jira_Id')['issue_type'].to_dict()
-    requirement_lookup = df.set_index('Jira_Id')['requirement_detail'].to_dict()
+⸻
 
-    # Define traceability checks
-    def check_traceability(row):
-        epic_available = bool(row['epic_link'] and row['epic_link'] != 'nan')
+	•	JIRA-linked dashboard for real-time KPIs
+	•	Change volume across key test artifacts
+	•	Track KPIs vs defined target benchmarks
+	•	Visualize effort trends and defect phases
 
-        # Check if epic link maps to a requirement
-        requirement_available = row['epic_link'] in requirement_lookup and \
-                                bool(requirement_lookup[row['epic_link']]) and \
-                                requirement_lookup[row['epic_link']] != 'nan'
+⸻
 
-        # Check if any linked issue is of type 'Test'
-        test_case_available = False
-        linked_ids = [x.strip() for x in row['issuelink'].split(',') if x.strip()]
-        for lid in linked_ids:
-            if issue_type_lookup.get(lid) == 'Test':
-                test_case_available = True
-                break
-
-        traceability = int(epic_available and requirement_available and test_case_available)
-        return pd.Series([epic_available, requirement_available, test_case_available, traceability],
-                         index=['epic_available', 'requirement_available', 'test_case_available', 'traceability'])
-
-    # Apply function to each row
-    df[['epic_available', 'requirement_available', 'test_case_available', 'traceability']] = df.apply(check_traceability, axis=1)
-    return df
-
-df = add_traceability_flags(df)
-df.to_csv("jira_logs.csv", index=False)
+Would you like these styled as bullet points with icons or kept plain for consistency?
