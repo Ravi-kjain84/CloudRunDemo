@@ -1,3 +1,40 @@
+Here is the refined and concise version of each block’s content for your presentation slide:
+
+⸻
+
+Concise Flowchart Blocks
+	1.	Download Requirements
+Export filtered JIRA data (Excel)
+	2.	Test Case Template (Optional)
+Open template, select standard cases
+	3.	Requirement Analysis
+Review design, ETL, lineage docs
+Connect with owner if needed
+	4.	Generate Intermediate Cases
+Click to populate editable test cases
+	5.	Test Case Finalization
+Finalize cases, run dry run script
+	6.	Review Test Cases
+Request review, auto-label, approve
+	7.	Upload to JIRA
+Refresh template, upload, save filter
+	8.	Release Planning
+Create sprint, add cases from filter
+	9.	Dashboard Validation
+Check batch gaps, use SQL in BigQuery
+	10.	Defect & Evidence
+Update results, attach evidence, link defects
+	11.	Live KPI Dashboard
+Monitor test KPIs from JIRA
+	12.	Strategy Completion
+Ensure coverage, trace via KPIs
+
+⸻
+
+Would you like me to update this text into the original visual as well?
+
+
+
 Here is the refined and optimized list of headers, with improved consistency, concise wording, and parallel structure:
 
 ⸻
