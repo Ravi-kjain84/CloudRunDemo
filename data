@@ -1,3 +1,13 @@
+
+project = RequirementsProjectKey
+AND issuetype = Requirement
+AND issueFunction in issuesInEpics(
+  "project = EpicProjectKey
+   AND issuetype = Epic
+   AND labels = \"RWA:Q125:Baselined\""
+)
+
+
 (
   project = REQ_PROJ
   AND issuetype = Requirement
