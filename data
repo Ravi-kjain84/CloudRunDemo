@@ -1,4 +1,78 @@
 Sub Update_Epic_Dropdowns()
+    ' === CONFIGURABLE SECTION ===
+    Dim dataSheetName As String: dataSheetName = "DataSheet"       ' Sheet with Req-Epic mapping
+    Dim entrySheetName As String: entrySheetName = "EntrySheet"    ' Sheet where dropdowns are applied
+
+    Dim dataReqCol As Long: dataReqCol = 1     ' Column A in DataSheet
+    Dim dataEpicCol As Long: dataEpicCol = 2   ' Column B in DataSheet
+
+    Dim entryReqCol As Long: entryReqCol = 3   ' Column C in EntrySheet
+    Dim entryEpicCol As Long: entryEpicCol = 4 ' Column D in EntrySheet
+    ' =============================
+
+    Dim wsData As Worksheet, wsEntry As Worksheet
+    Dim reqVal As String
+    Dim epics As Collection
+    Dim epicList As String
+    Dim lastRowData As Long, lastRowEntry As Long
+    Dim i As Long, j As Long
+
+    Set wsData = ThisWorkbook.Sheets(dataSheetName)
+    Set wsEntry = ThisWorkbook.Sheets(entrySheetName)
+
+    lastRowEntry = wsEntry.Cells(wsEntry.Rows.Count, entryReqCol).End(xlUp).Row
+    lastRowData = wsData.Cells(wsData.Rows.Count, dataReqCol).End(xlUp).Row
+
+    Application.EnableEvents = False
+
+    For i = 2 To lastRowEntry
+        reqVal = wsEntry.Cells(i, entryReqCol).Value
+        If reqVal <> "" Then
+            Set epics = New Collection
+            epicList = ""
+            On Error Resume Next
+            For j = 2 To lastRowData
+                If wsData.Cells(j, dataReqCol).Value = reqVal Then
+                    epics.Add wsData.Cells(j, dataEpicCol).Value, CStr(wsData.Cells(j, dataEpicCol).Value)
+                End If
+            Next j
+            On Error GoTo 0
+
+            For j = 1 To epics.Count
+                epicList = epicList & epics(j) & ","
+            Next j
+
+            If Len(epicList) > 0 Then
+                epicList = Left(epicList, Len(epicList) - 1)
+                With wsEntry.Cells(i, entryEpicCol).Validation
+                    .Delete
+                    .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+                        Operator:=xlBetween, Formula1:=epicList
+                    .IgnoreBlank = True
+                    .InCellDropdown = True
+                    .ShowInput = True
+                    .ShowError = True
+                End With
+            Else
+                wsEntry.Cells(i, entryEpicCol).Validation.Delete
+            End If
+        Else
+            wsEntry.Cells(i, entryEpicCol).Validation.Delete
+        End If
+    Next i
+
+    Application.EnableEvents = True
+    MsgBox "Epic dropdowns updated successfully.", vbInformation
+End Sub
+
+---------
+
+
+
+
+
+
+Sub Update_Epic_Dropdowns()
     Dim wsData As Worksheet
     Dim wsEntry As Worksheet
     Dim reqVal As String
