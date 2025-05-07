@@ -1,3 +1,68 @@
+Sub Update_Epic_Dropdowns()
+    Dim wsData As Worksheet
+    Dim wsEntry As Worksheet
+    Dim reqVal As String
+    Dim epics As Collection
+    Dim epicList As String
+    Dim lastRowData As Long, lastRowEntry As Long
+    Dim i As Long, j As Long
+
+    Set wsData = ThisWorkbook.Sheets("DataSheet")      ' Sheet with Req–Epic mapping
+    Set wsEntry = ThisWorkbook.Sheets("EntrySheet")    ' Sheet where dropdowns are needed
+
+    lastRowEntry = wsEntry.Cells(wsEntry.Rows.Count, 3).End(xlUp).Row ' Column C: Requirements
+    lastRowData = wsData.Cells(wsData.Rows.Count, 1).End(xlUp).Row    ' Column A: Requirements in DataSheet
+
+    Application.EnableEvents = False
+
+    For i = 2 To lastRowEntry
+        reqVal = wsEntry.Cells(i, 3).Value
+        If reqVal <> "" Then
+            Set epics = New Collection
+            epicList = ""
+            On Error Resume Next
+            For j = 2 To lastRowData
+                If wsData.Cells(j, 1).Value = reqVal Then
+                    epics.Add wsData.Cells(j, 2).Value, CStr(wsData.Cells(j, 2).Value)
+                End If
+            Next j
+            On Error GoTo 0
+
+            For j = 1 To epics.Count
+                epicList = epicList & epics(j) & ","
+            Next j
+
+            If Len(epicList) > 0 Then
+                epicList = Left(epicList, Len(epicList) - 1)
+                With wsEntry.Cells(i, 4).Validation
+                    .Delete
+                    .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+                        Operator:=xlBetween, Formula1:=epicList
+                    .IgnoreBlank = True
+                    .InCellDropdown = True
+                    .ShowInput = True
+                    .ShowError = True
+                End With
+            Else
+                wsEntry.Cells(i, 4).Validation.Delete
+            End If
+        Else
+            wsEntry.Cells(i, 4).Validation.Delete
+        End If
+    Next i
+
+    Application.EnableEvents = True
+    MsgBox "Epic dropdowns updated successfully.", vbInformation
+End Sub
+
+----------
+
+
+
+
+
+
+
 
 project = RequirementsProjectKey
 AND issuetype = Requirement
