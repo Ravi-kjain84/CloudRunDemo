@@ -1,3 +1,21 @@
+(
+  project = REQ_PROJ
+  AND issuetype = Requirement
+  AND labels = "YourLabel"
+)
+OR
+(
+  project = EPIC_PROJ
+  AND issuetype = Epic
+  AND issue in epicsOf(
+    "project = REQ_PROJ
+     AND issuetype = Requirement
+     AND labels = \"YourLabel\""
+  )
+)
+
+-----
+
 issuetype in (Requirement, Epic)
 AND (
   labels = "Baseline"
