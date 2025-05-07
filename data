@@ -1,36 +1,84 @@
-import re
-from docx import Document
+Thank you for your patience. Here is the complete transcription from all images, cleaned and compiled into structured form for readability and future use (e.g., presentation script, documentation, or training material):
 
-def convert_vtt_to_text(vtt_file_path):
-    output_lines = []
-    with open(vtt_file_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+⸻
 
-    for line in lines:
-        if re.match(r"^\s*$", line):
-            continue
-        if re.match(r"^\d{2}:\d{2}:\d{2}\.\d{3} -->", line):
-            continue
-        if re.match(r"^[\w-]{36}", line.strip()):
-            continue
-        output_lines.append(line.strip())
+Complete Transcription: Strategy Walkthrough
 
-    return ' '.join(output_lines)
+Step 1: Download JIRA Requirements
+	•	Navigate to Issues > Current Search in JIRA.
+	•	Filter by project, issue type = Requirement, and apply relevant labels (e.g., internal, quarter-end).
+	•	Export the result as an Excel file and save in a specified folder.
+	•	Convert the file to .xlsx format.
 
-def save_to_docx(text, docx_path):
-    doc = Document()
-    doc.add_paragraph(text)
-    doc.save(docx_path)
+Step 2: Open Hashtag Test Case Generator
+	•	Open the template file which supports automation, JIRA upload, and test evidence generation.
+	•	It includes three sections:
+	1.	Requirement Intake
+	2.	Intermediate Intake
+	3.	Final Test Case Generation
 
-def save_to_txt(text, txt_path):
-    with open(txt_path, 'w', encoding='utf-8') as f:
-        f.write(text)
+Step 3: Populate Intermediate Test Cases
+	•	Click Refresh JIRA Requirements.
+	•	Select reusable or automated test cases using dropdowns.
+	•	For unmapped ones, select Placeholder.
+	•	Click Intermediate Test Case button to populate editable test cases.
 
-# Example usage
-vtt_file = "your_file.vtt"           # Replace with actual VTT file path
-docx_file = "output.docx"            # Desired output Word file
-txt_file = "output.txt"              # Desired output text file
+Step 4: Finalize Test Cases
+	•	Update issue key, table name, column name, batch ID, and test case type.
+	•	For automated test cases, ensure validation using the Python script.
+	•	Click Generate Final Test Case.
+	•	Manual test cases remain in the same format; placeholders are also added where needed.
 
-final_text = convert_vtt_to_text(vtt_file)
-save_to_docx(final_text, docx_file)
-save_to_txt(final_text, txt_file)
+Step 5: Evidence Generation
+	•	Run the Python script to validate and create evidence for automated test cases.
+	•	Manual testers can update evidence manually.
+	•	The script pulls data via BigQuery SQL, checks results, and writes into the evidence file.
+
+Step 6: Review & Approval
+	•	All test cases must be formally reviewed before upload.
+	•	Ensure alignment with testing strategy and guidelines.
+	•	KPIs will track whether test cases were uploaded before the epic reaches “Ready for FT”.
+
+Step 7: Upload to JIRA
+	•	Use the upload-ready template (non-XLSM) for JIRA.
+	•	Open the file, click refresh, and upload the final test cases.
+
+Step 8: Create Release and Sprint
+	•	Go to Test Plan in JIRA, create a release cycle.
+	•	Add test cases to the cycle using saved filters.
+	•	Create a new sprint for the release and track uploaded cases.
+
+Step 9: Regression & DataGuard Dashboard
+	•	Dashboard auto-refreshes with every new batch.
+	•	Select date ranges, batch IDs, run groups, and regulators.
+	•	Use summary and detailed SQL for batch comparison.
+	•	Run SQL in BigQuery to identify discrepancies.
+	•	Screenshots or results can be pasted back into the evidence file.
+
+Step 10: KPI Dashboard & Traceability
+	•	Live dashboard (linked via Python and BigQuery) shows:
+	•	% test cases automated
+	•	Defects detected before FT or UAT
+	•	Test cycle duration
+	•	Release-wise test case status
+	•	Defect traceability to EPIC, requirement, and test case
+	•	Historic trends available for analysis.
+
+Step 11: Metrics and Strategic Alignment
+	•	Targets include:
+	•	100% test cases available before “Ready for FT”
+	•	50% automation coverage
+	•	95% defect detection before UAT
+	•	Traceability between defect → test case → requirement → EPIC must be maintained.
+
+Step 12: Final Notes
+	•	Unified KPIs, peer review, structured evidence, and testing performance metrics are embedded in this process.
+	•	UAT documentation and test release tracking should be handled separately but in alignment with this process.
+
+Closing:
+
+“Thank you. This concludes the strategy walkthrough demo.”
+
+⸻
+
+Would you like this structured version exported as a .docx or .pptx file for your presentation deck? ￼
