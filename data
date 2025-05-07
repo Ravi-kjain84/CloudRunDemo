@@ -1,3 +1,36 @@
+import re
+
+def convert_vtt_to_text(vtt_file_path):
+    output_lines = []
+    with open(vtt_file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    for line in lines:
+        # Skip WEBVTT headers, timestamps, and empty lines
+        if re.match(r"^\s*$", line):
+            continue
+        if re.match(r"^\d{2}:\d{2}:\d{2}\.\d{3} -->", line):
+            continue
+        if re.match(r"^[\w-]{36}", line.strip()):
+            continue
+        output_lines.append(line.strip())
+
+    # Join all text lines into a paragraph
+    full_text = ' '.join(output_lines)
+    return full_text
+
+# Example usage
+vtt_path = "your_file.vtt"  # replace with your actual file path
+clean_text = convert_vtt_to_text(vtt_path)
+print(clean_text)
+
+--------
+
+
+
+
+
+
 Sub Update_Epic_Dropdowns()
     ' === CONFIGURABLE SECTION ===
     Dim dataSheetName As String: dataSheetName = "DataSheet"       ' Sheet with Req-Epic mapping
