@@ -1,326 +1,43 @@
 import re
+from PIL import Image
+import pytesseract
+import docx
 
-def convert_vtt_to_text(vtt_file_path):
-    output_lines = []
-    with open(vtt_file_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+def extract_text_from_image(image_path):
+    image = Image.open(image_path)
+    raw_text = pytesseract.image_to_string(image)
+    return raw_text
 
-    for line in lines:
-        # Skip WEBVTT headers, timestamps, and empty lines
-        if re.match(r"^\s*$", line):
+def clean_vtt_text(raw_text):
+    cleaned_lines = []
+    for line in raw_text.splitlines():
+        if re.match(r"^\s*$", line):  # skip empty lines
             continue
-        if re.match(r"^\d{2}:\d{2}:\d{2}\.\d{3} -->", line):
+        if re.match(r"^\d{2}:\d{2}:\d{2}\.\d{3} -->", line):  # skip timestamps
             continue
-        if re.match(r"^[\w-]{36}", line.strip()):
+        if re.match(r"^[\w-]{36}", line.strip()):  # skip UUID lines
             continue
-        output_lines.append(line.strip())
+        cleaned_lines.append(line.strip())
+    return ' '.join(cleaned_lines)
 
-    # Join all text lines into a paragraph
-    full_text = ' '.join(output_lines)
-    return full_text
+def save_to_doc_and_txt(text, docx_filename, txt_filename):
+    # Save to DOCX
+    doc = docx.Document()
+    doc.add_paragraph(text)
+    doc.save(docx_filename)
 
-# Example usage
-vtt_path = "your_file.vtt"  # replace with your actual file path
-clean_text = convert_vtt_to_text(vtt_path)
-print(clean_text)
+    # Save to TXT
+    with open(txt_filename, "w", encoding="utf-8") as f:
+        f.write(text)
 
---------
+# Define file paths
+image_path = "/mnt/data/IMG_6B9B82AF-7D01-43FE-9919-537B2ABB8E9F.jpeg"
+docx_path = "/mnt/data/Extracted_Transcript.docx"
+txt_path = "/mnt/data/Extracted_Transcript.txt"
 
+# Run the steps
+raw_text = extract_text_from_image(image_path)
+final_text = clean_vtt_text(raw_text)
+save_to_doc_and_txt(final_text, docx_path, txt_path)
 
-
-
-
-
-Sub Update_Epic_Dropdowns()
-    ' === CONFIGURABLE SECTION ===
-    Dim dataSheetName As String: dataSheetName = "DataSheet"       ' Sheet with Req-Epic mapping
-    Dim entrySheetName As String: entrySheetName = "EntrySheet"    ' Sheet where dropdowns are applied
-
-    Dim dataReqCol As Long: dataReqCol = 1     ' Column A in DataSheet
-    Dim dataEpicCol As Long: dataEpicCol = 2   ' Column B in DataSheet
-
-    Dim entryReqCol As Long: entryReqCol = 3   ' Column C in EntrySheet
-    Dim entryEpicCol As Long: entryEpicCol = 4 ' Column D in EntrySheet
-    ' =============================
-
-    Dim wsData As Worksheet, wsEntry As Worksheet
-    Dim reqVal As String
-    Dim epics As Collection
-    Dim epicList As String
-    Dim lastRowData As Long, lastRowEntry As Long
-    Dim i As Long, j As Long
-
-    Set wsData = ThisWorkbook.Sheets(dataSheetName)
-    Set wsEntry = ThisWorkbook.Sheets(entrySheetName)
-
-    lastRowEntry = wsEntry.Cells(wsEntry.Rows.Count, entryReqCol).End(xlUp).Row
-    lastRowData = wsData.Cells(wsData.Rows.Count, dataReqCol).End(xlUp).Row
-
-    Application.EnableEvents = False
-
-    For i = 2 To lastRowEntry
-        reqVal = wsEntry.Cells(i, entryReqCol).Value
-        If reqVal <> "" Then
-            Set epics = New Collection
-            epicList = ""
-            On Error Resume Next
-            For j = 2 To lastRowData
-                If wsData.Cells(j, dataReqCol).Value = reqVal Then
-                    epics.Add wsData.Cells(j, dataEpicCol).Value, CStr(wsData.Cells(j, dataEpicCol).Value)
-                End If
-            Next j
-            On Error GoTo 0
-
-            For j = 1 To epics.Count
-                epicList = epicList & epics(j) & ","
-            Next j
-
-            If Len(epicList) > 0 Then
-                epicList = Left(epicList, Len(epicList) - 1)
-                With wsEntry.Cells(i, entryEpicCol).Validation
-                    .Delete
-                    .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-                        Operator:=xlBetween, Formula1:=epicList
-                    .IgnoreBlank = True
-                    .InCellDropdown = True
-                    .ShowInput = True
-                    .ShowError = True
-                End With
-            Else
-                wsEntry.Cells(i, entryEpicCol).Validation.Delete
-            End If
-        Else
-            wsEntry.Cells(i, entryEpicCol).Validation.Delete
-        End If
-    Next i
-
-    Application.EnableEvents = True
-    MsgBox "Epic dropdowns updated successfully.", vbInformation
-End Sub
-
----------
-
-
-
-
-
-
-Sub Update_Epic_Dropdowns()
-    Dim wsData As Worksheet
-    Dim wsEntry As Worksheet
-    Dim reqVal As String
-    Dim epics As Collection
-    Dim epicList As String
-    Dim lastRowData As Long, lastRowEntry As Long
-    Dim i As Long, j As Long
-
-    Set wsData = ThisWorkbook.Sheets("DataSheet")      ' Sheet with Req–Epic mapping
-    Set wsEntry = ThisWorkbook.Sheets("EntrySheet")    ' Sheet where dropdowns are needed
-
-    lastRowEntry = wsEntry.Cells(wsEntry.Rows.Count, 3).End(xlUp).Row ' Column C: Requirements
-    lastRowData = wsData.Cells(wsData.Rows.Count, 1).End(xlUp).Row    ' Column A: Requirements in DataSheet
-
-    Application.EnableEvents = False
-
-    For i = 2 To lastRowEntry
-        reqVal = wsEntry.Cells(i, 3).Value
-        If reqVal <> "" Then
-            Set epics = New Collection
-            epicList = ""
-            On Error Resume Next
-            For j = 2 To lastRowData
-                If wsData.Cells(j, 1).Value = reqVal Then
-                    epics.Add wsData.Cells(j, 2).Value, CStr(wsData.Cells(j, 2).Value)
-                End If
-            Next j
-            On Error GoTo 0
-
-            For j = 1 To epics.Count
-                epicList = epicList & epics(j) & ","
-            Next j
-
-            If Len(epicList) > 0 Then
-                epicList = Left(epicList, Len(epicList) - 1)
-                With wsEntry.Cells(i, 4).Validation
-                    .Delete
-                    .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
-                        Operator:=xlBetween, Formula1:=epicList
-                    .IgnoreBlank = True
-                    .InCellDropdown = True
-                    .ShowInput = True
-                    .ShowError = True
-                End With
-            Else
-                wsEntry.Cells(i, 4).Validation.Delete
-            End If
-        Else
-            wsEntry.Cells(i, 4).Validation.Delete
-        End If
-    Next i
-
-    Application.EnableEvents = True
-    MsgBox "Epic dropdowns updated successfully.", vbInformation
-End Sub
-
-----------
-
-
-
-
-
-
-
-
-project = RequirementsProjectKey
-AND issuetype = Requirement
-AND issueFunction in issuesInEpics(
-  "project = EpicProjectKey
-   AND issuetype = Epic
-   AND labels = \"RWA:Q125:Baselined\""
-)
-
-
-(
-  project = REQ_PROJ
-  AND issuetype = Requirement
-  AND labels = "YourLabel"
-)
-OR
-(
-  project = EPIC_PROJ
-  AND issuetype = Epic
-  AND issue in epicsOf(
-    "project = REQ_PROJ
-     AND issuetype = Requirement
-     AND labels = \"YourLabel\""
-  )
-)
-
------
-
-issuetype in (Requirement, Epic)
-AND (
-  labels = "Baseline"
-  OR issue in epicsOf(
-       "project = RWA
-        AND issuetype = Requirement
-        AND labels = \"Baseline\""
-     )
-)
-
-----
-issuetype in (Requirement, Epic)
-AND (
-   labels = "YourLabel"
-   OR
-   issue in epicsOf(
-     "project = YOUR_PROJECT_KEY
-      AND issuetype = Requirement
-      AND labels = \"YourLabel\""
-   )
-)
-
-
-
-----
-
-import os
-import csv
-import google.auth
-from google.cloud import bigquery
-from google.api_core.exceptions import NotFound
-
-# ─── 1) Proxy (if you need one) ────────────────────────────────────────────────
-os.environ["HTTP_PROXY"]  = "googleapis-dev.gcp.cloud.uk.hsbc:3128"
-os.environ["HTTPS_PROXY"] = "googleapis-dev.gcp.cloud.uk.hsbc:3128"
-
-# ─── 2) Environment & Authentication ──────────────────────────────────────────
-project     = "hsbc-9093058-rwapc52-dev"  # your GCP project ID
-credentials, _ = google.auth.default()
-client      = bigquery.Client(credentials=credentials, project=project)
-
-# ─── 3) Upload Function ───────────────────────────────────────────────────────
-
-def upload_csv_to_bq(
-    csv_file_path: str,
-    bq_table_name: str,
-    *,
-    force_refresh: bool = False
-):
-    """
-    Load a local CSV into BigQuery.
-     - If force_refresh=True, always truncates & reloads the table.
-     - Else: append if schema matches; else truncate & reload.
-    After an append, dedupe so you never get exact-row duplicates.
-    """
-    table_id = f"{project}.log_ds.{bq_table_name}"
-
-    # 3.1) Check if the table already exists
-    try:
-        table = client.get_table(table_id)
-        table_exists = True
-    except NotFound:
-        table_exists = False
-
-    # 3.2) Read the CSV header row
-    with open(csv_file_path, newline="") as csvfile:
-        reader     = csv.reader(csvfile)
-        csv_header = next(reader)
-
-    # 3.3) Decide WriteDisposition
-    if force_refresh or not table_exists:
-        write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
-    else:
-        existing_cols = [f.name for f in table.schema]
-        if existing_cols == csv_header:
-            write_disp = bigquery.WriteDisposition.WRITE_APPEND
-        else:
-            write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
-
-    # 3.4) Configure the load job
-    job_config = bigquery.LoadJobConfig(
-        skip_leading_rows   = 1,
-        source_format       = bigquery.SourceFormat.CSV,
-        autodetect          = True,
-        create_disposition  = bigquery.CreateDisposition.CREATE_IF_NEEDED,
-        write_disposition   = write_disp
-    )
-
-    # 3.5) Run the load
-    with open(csv_file_path, "rb") as source_file:
-        load_job = client.load_table_from_file(
-            source_file,
-            table_id,
-            job_config=job_config
-        )
-    print(f"Started load job {load_job.job_id} for {csv_file_path} → {table_id} ({write_disp})")
-    load_job.result()
-    print("Load complete.")
-
-    # 3.6) If we appended (and not forced), dedupe exact duplicates
-    if (not force_refresh 
-        and table_exists 
-        and write_disp == bigquery.WriteDisposition.WRITE_APPEND):
-        dedupe_sql = f"""
-        CREATE OR REPLACE TABLE `{table_id}` AS
-        SELECT DISTINCT *
-        FROM `{table_id}`;
-        """
-        client.query(dedupe_sql).result()
-        print("Deduplication complete.")
-
-# ─── 4) Example Usage ─────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    # full refresh:
-    upload_csv_to_bq(
-      "phase_durations_summary.csv",
-      "RJ_jira_table_new",
-      force_refresh=True
-    )
-
-    # intelligent append/truncate:
-    upload_csv_to_bq(
-      "jira_logs.csv",
-      "RJ_jira_logs",
-      force_refresh=False
-    )
+print("Extraction and file save complete.")
