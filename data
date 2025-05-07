@@ -1,43 +1,36 @@
 import re
-from PIL import Image
-import pytesseract
-import docx
+from docx import Document
 
-def extract_text_from_image(image_path):
-    image = Image.open(image_path)
-    raw_text = pytesseract.image_to_string(image)
-    return raw_text
+def convert_vtt_to_text(vtt_file_path):
+    output_lines = []
+    with open(vtt_file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
 
-def clean_vtt_text(raw_text):
-    cleaned_lines = []
-    for line in raw_text.splitlines():
-        if re.match(r"^\s*$", line):  # skip empty lines
+    for line in lines:
+        if re.match(r"^\s*$", line):
             continue
-        if re.match(r"^\d{2}:\d{2}:\d{2}\.\d{3} -->", line):  # skip timestamps
+        if re.match(r"^\d{2}:\d{2}:\d{2}\.\d{3} -->", line):
             continue
-        if re.match(r"^[\w-]{36}", line.strip()):  # skip UUID lines
+        if re.match(r"^[\w-]{36}", line.strip()):
             continue
-        cleaned_lines.append(line.strip())
-    return ' '.join(cleaned_lines)
+        output_lines.append(line.strip())
 
-def save_to_doc_and_txt(text, docx_filename, txt_filename):
-    # Save to DOCX
-    doc = docx.Document()
+    return ' '.join(output_lines)
+
+def save_to_docx(text, docx_path):
+    doc = Document()
     doc.add_paragraph(text)
-    doc.save(docx_filename)
+    doc.save(docx_path)
 
-    # Save to TXT
-    with open(txt_filename, "w", encoding="utf-8") as f:
+def save_to_txt(text, txt_path):
+    with open(txt_path, 'w', encoding='utf-8') as f:
         f.write(text)
 
-# Define file paths
-image_path = "/mnt/data/IMG_6B9B82AF-7D01-43FE-9919-537B2ABB8E9F.jpeg"
-docx_path = "/mnt/data/Extracted_Transcript.docx"
-txt_path = "/mnt/data/Extracted_Transcript.txt"
+# Example usage
+vtt_file = "your_file.vtt"           # Replace with actual VTT file path
+docx_file = "output.docx"            # Desired output Word file
+txt_file = "output.txt"              # Desired output text file
 
-# Run the steps
-raw_text = extract_text_from_image(image_path)
-final_text = clean_vtt_text(raw_text)
-save_to_doc_and_txt(final_text, docx_path, txt_path)
-
-print("Extraction and file save complete.")
+final_text = convert_vtt_to_text(vtt_file)
+save_to_docx(final_text, docx_file)
+save_to_txt(final_text, txt_file)
