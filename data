@@ -1,3 +1,18 @@
+issuetype in (Requirement, Epic)
+AND (
+   labels = "YourLabel"
+   OR
+   issue in epicsOf(
+     "project = YOUR_PROJECT_KEY
+      AND issuetype = Requirement
+      AND labels = \"YourLabel\""
+   )
+)
+
+
+
+----
+
 import os
 import csv
 import google.auth
