@@ -1,5 +1,16 @@
 issuetype in (Requirement, Epic)
 AND (
+  labels = "Baseline"
+  OR issue in epicsOf(
+       "project = RWA
+        AND issuetype = Requirement
+        AND labels = \"Baseline\""
+     )
+)
+
+----
+issuetype in (Requirement, Epic)
+AND (
    labels = "YourLabel"
    OR
    issue in epicsOf(
