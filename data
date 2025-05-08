@@ -1,6 +1,27 @@
-Certainly. Here’s the final, polished version incorporating your instructions:
-	•	Implementing Agile practices and enabling cross-utilization between Design and Testing teams can improve resource utilization from 42.4% to 50–55%.
-	•	With this utilization improvement (42.4% → 50%) and by reducing effort per unit (100 to 65/75 days), overall resource demand can be lowered by 36–45%.
-	•	These enhancements will also improve test coverage and strengthen governance.
+import pandas as pd
 
-Let me know if you need this formatted as a presentation bullet or added to a document.
+# your existing DataFrame
+# df = pd.read_csv(...)
+
+# 1) list out the columns you want to default to 0
+cols_to_zero = [
+    "Design_Time_days",
+    "Build_Queue_days",
+    "Build_Time_days",
+    "FT_Queue_Time_days",
+    "FT_Time_days",
+    "UAT_Queue_Time_days",
+    "UAT_Time_days",
+    # add any others here…
+]
+
+# 2) coerce → fill → round
+for col in cols_to_zero:
+    df[col] = (
+        pd.to_numeric(df[col], errors="coerce")  # force numeric, blanks→NaN
+          .fillna(0)                              # NaN → 0
+          .round(2)                               # two decimal places
+    )
+
+# 3) now export
+df.to_csv("phase_durations_summary.csv", index=False)
