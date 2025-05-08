@@ -1,27 +1,6 @@
-import pandas as pd
-
-# your existing DataFrame
-# df = pd.read_csv(...)
-
-# 1) list out the columns you want to default to 0
-cols_to_zero = [
-    "Design_Time_days",
-    "Build_Queue_days",
-    "Build_Time_days",
-    "FT_Queue_Time_days",
-    "FT_Time_days",
-    "UAT_Queue_Time_days",
-    "UAT_Time_days",
-    # add any others here…
-]
-
-# 2) coerce → fill → round
-for col in cols_to_zero:
-    df[col] = (
-        pd.to_numeric(df[col], errors="coerce")  # force numeric, blanks→NaN
-          .fillna(0)                              # NaN → 0
-          .round(2)                               # two decimal places
-    )
-
-# 3) now export
-df.to_csv("phase_durations_summary.csv", index=False)
+sudo apt install wget gpg -y
+wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+sudo install -o root -g root -m 644 packages.microsoft.gpg /etc/apt/trusted.gpg.d/
+sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+sudo apt update
+sudo apt install code -y
