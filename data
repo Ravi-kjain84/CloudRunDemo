@@ -1,5 +1,7 @@
 CASE 
-  WHEN REGEXP_MATCH(IFNULL(label, ""), "(?i).*SME.*") THEN "UAT"
-  WHEN REGEXP_MATCH(IFNULL(label, ""), "(?i).*FT.*") THEN "FT"
-  ELSE "FT"
+  WHEN LOWER(test_phase) = "design" THEN 1
+  WHEN LOWER(test_phase) = "build" THEN 2
+  WHEN LOWER(test_phase) = "functional testing" THEN 3
+  WHEN LOWER(test_phase) = "uat" THEN 4
+  ELSE 99
 END
