@@ -1,34 +1,3 @@
-from google.cloud import bigquery
-
-# Define schema explicitly
-schema_definition = [
-    bigquery.SchemaField("column1", "STRING"),
-    bigquery.SchemaField("column2", "INTEGER"),
-    bigquery.SchemaField("column3", "FLOAT"),
-    # Add more columns as needed
-]
-
-# Define the upload function
-def upload_csv_to_bq(csv_file_path, table_id, client, schema):
-    job_config = bigquery.LoadJobConfig(
-        skip_leading_rows=1,
-        source_format=bigquery.SourceFormat.CSV,
-        autodetect=False,
-        schema=schema,
-        create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
-        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
-    )
-
-    with open(csv_file_path, "rb") as source_file:
-        load_job = client.load_table_from_file(
-            source_file,
-            table_id,
-            job_config=job_config
-        )
-        load_job.result()  # Waits for the job to complete
-        print(f"Loaded {load_job.output_rows} rows into {table_id}.")
-
-# Usage
-client = bigquery.Client()
-table_id = "your-project.your_dataset.your_table"
-upload_csv_to_bq("path/to/your.csv", table_id, client, schema_definition)
+"Epic: LIQ:Q125:Committed": """project = FINOTC AND labels in ("LIQ:Q1''25")""",
+"Bug: LIQ:Q125:Committed": """issueFunction in issuesInEpics("labels in (\"LIQ:Q1''25\")") AND issuetype = Bug""",
+"Test:LIQ:Q125:Committed": """issueFunction in issuesInEpics("labels in (\"LIQ:Q1''25\")") AND issuetype = Test""",
