@@ -1,5 +1,5 @@
 CASE 
-  WHEN REGEXP_MATCH(label, "(?i).*SME.*") THEN "UAT"
-  WHEN REGEXP_MATCH(label, "(?i).*FT.*") THEN "FT"
+  WHEN REGEXP_MATCH(IFNULL(label, ""), "(?i).*SME.*") THEN "UAT"
+  WHEN REGEXP_MATCH(IFNULL(label, ""), "(?i).*FT.*") THEN "FT"
   ELSE "FT"
 END
