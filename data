@@ -1,3 +1,5 @@
-"Epic: LIQ:Q125:Committed": """project = FINOTC AND labels in ("LIQ:Q1''25")""",
-"Bug: LIQ:Q125:Committed": """issueFunction in issuesInEpics("labels in (\"LIQ:Q1''25\")") AND issuetype = Bug""",
-"Test:LIQ:Q125:Committed": """issueFunction in issuesInEpics("labels in (\"LIQ:Q1''25\")") AND issuetype = Test""",
+CASE 
+  WHEN REGEXP_MATCH(label, ".*SME.*") THEN "UAT"
+  WHEN REGEXP_MATCH(label, ".*FT.*") THEN "UAT"
+  ELSE "Other"
+END
