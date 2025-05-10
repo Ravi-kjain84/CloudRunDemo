@@ -1,3 +1,31 @@
+project_key = "FINOTC"
+labels = ["LIQ:Q125:Committed", "RWA:Q324:Baselined"]
+
+jql_query = {}
+
+for label in labels:
+    escaped_label = label.replace('"', '\\"')  # Safety if label has quotes
+    jql_query[f"Bug: {label}"] = (
+        f'issueFunction in issuesInEpics("labels in (\\"{escaped_label}\\")") AND issuetype = Bug'
+    )
+    jql_query[f"Epic: {label}"] = (
+        f'project = "{project_key}" AND labels in ("{escaped_label}") AND issuetype = Epic'
+    )
+    jql_query[f"Test: {label}"] = (
+        f'issueFunction in issuesInEpics("labels in (\\"{escaped_label}\\")") AND issuetype = Test'
+    )
+
+
+project_key = "FINOTC"
+labels = ["LIQ:Q125:Committed", "RWA:Q324:Baselined"]
+
+jql_query = {}
+
+for label in labels:
+    jql_query[f"Bug: {label}"] = f'issueFunction in issuesInEpics("labels in (\\"{label}\\")") AND issuetype = Bug'
+    jql_query[f"Epic: {label}"] = f'project = "{project_key}" AND labels in ("{label}") AND issuetype = Epic'
+    jql_query[f"Test: {label}"] = f'issueFunction in issuesInEpics("labels in (\\"{label}\\")") AND issuetype = Test'
+
 jql_query = {
     "Bug: LIQ:Q125:Committed": 'issueFunction in issuesInEpics("labels in (\\"LIQ:Q125:Committed\\")") AND issuetype = Bug',
     "Epic: LIQ:Q125:Committed": 'project = "FINOTC" AND labels in ("LIQ:Q125:Committed") AND issuetype = Epic',
