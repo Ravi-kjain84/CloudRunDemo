@@ -1,3 +1,12 @@
+jql_query = {
+    "Bug: LIQ:Q125:Committed": 'issueFunction in issuesInEpics("labels in (\\"LIQ:Q125:Committed\\")") AND issuetype = Bug',
+    "Epic: LIQ:Q125:Committed": 'project = "FINOTC" AND labels in ("LIQ:Q125:Committed") AND issuetype = Epic',
+    "Test: LIQ:Q125:Committed": 'issueFunction in issuesInEpics("labels in (\\"LIQ:Q125:Committed\\")") AND issuetype = Test'
+}
+
+
+
+
 final_jql_query = f'project = "{project_key}" AND issueFunction in issuesInEpics("labels in (\\"{label_value}\\")") AND issuetype = Bug'
 
 
