@@ -1,3 +1,8 @@
+final_jql_query = f'project = "{project_key}" AND issueFunction in issuesInEpics("labels in (\\"{label_value}\\")") AND issuetype = Bug'
+
+
+
+
 label_value = "LIQ:Q1'25"
 project_key = "FINOTC"
 
