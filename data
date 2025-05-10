@@ -1,7 +1,8 @@
-CASE 
-  WHEN LOWER(test_phase) = "design" THEN 1
-  WHEN LOWER(test_phase) = "build" THEN 2
-  WHEN LOWER(test_phase) = "functional testing" THEN 3
-  WHEN LOWER(test_phase) = "uat" THEN 4
-  ELSE 99
-END
+label_value = "LIQ:Q1'25"
+project_key = "FINOTC"
+
+final_jql_query = (
+    f'project = "{project_key}" AND '
+    f'issueFunction in issuesInEpics("labels in (\\"{label_value}\\")") AND '
+    'issuetype = Bug'
+)
