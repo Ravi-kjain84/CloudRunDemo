@@ -5,6 +5,31 @@ Sub ActivateHyperlinkFormulasInColumn()
     Dim lastRow As Long
     Dim rng As Range
 
+    Set ws = ThisWorkbook.Sheets("Sheet1") ' Replace with your actual sheet name
+    targetCol = "D"                         ' Column with formula text
+
+    lastRow = ws.Cells(ws.Rows.Count, targetCol).End(xlUp).Row
+    Set rng = ws.Range(targetCol & "2:" & targetCol & lastRow)
+
+    For Each cell In rng
+        If cell.Value <> "" And InStr(cell.Value, "=HYPERLINK(") > 0 Then
+            cell.Formula = cell.Value
+        End If
+    Next cell
+End Sub
+
+
+
+
+
+
+Sub ActivateHyperlinkFormulasInColumn()
+    Dim ws As Worksheet
+    Dim cell As Range
+    Dim targetCol As String
+    Dim lastRow As Long
+    Dim rng As Range
+
     ' Set target worksheet and column
     Set ws = ThisWorkbook.Sheets("Sheet1") ' Change to your sheet name
     targetCol = "D"                         ' Change to your column (e.g., "D")
