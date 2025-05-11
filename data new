@@ -1,3 +1,39 @@
+Sub ActivateHyperlinkFormulasInColumn()
+    Dim ws As Worksheet
+    Dim cell As Range
+    Dim targetCol As String
+    Dim lastRow As Long
+    Dim rng As Range
+
+    ' Set target worksheet and column
+    Set ws = ThisWorkbook.Sheets("Sheet1") ' Change to your sheet name
+    targetCol = "D"                         ' Change to your column (e.g., "D")
+
+    ' Determine the last used row in the column
+    lastRow = ws.Cells(ws.Rows.Count, targetCol).End(xlUp).Row
+
+    ' Define the range to process
+    Set rng = ws.Range(targetCol & "2:" & targetCol & lastRow) ' Skips header row
+
+    ' Loop through each cell and activate HYPERLINK formulas
+    For Each cell In rng
+        If cell.Value <> "" And InStr(cell.Value, "=HYPERLINK(") > 0 Then
+            cell.Formula = cell.Value
+        End If
+    Next cell
+
+    MsgBox "Hyperlink formulas activated in column " & targetCol
+End Sub
+
+
+
+
+
+
+
+
+
+
 
 = "=HYPERLINK(""https://jira.company.com/browse/" & [jira_key] & """, """ & [jira_key] & """)"
 
