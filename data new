@@ -1,3 +1,29 @@
+
+BODY_TEMPLATE = """
+<html>
+<body>
+<p style="font-size:11pt; font-family:Calibri, sans-serif;">Hi <b>{Name}</b>,</p>
+
+<div style="font-size:11pt; font-family:Calibri, sans-serif;">
+{MessageBody}
+</div>
+
+<p style="font-size:10pt; font-family:Calibri, sans-serif;">
+  <span style="color:#1a73e8;">Regards,</span><br>
+  <b><span style="color:#b30000;">Testing Center of Excellence (CoE)</span></b><br>
+  Global Finance Transformation<br>
+  Email: testing.coe@noexternalmail.hsbc.com
+</p>
+
+</body>
+</html>
+"""
+
+
+
+
+
+
 BODY_TEMPLATE = """
 <html>
 <body>
