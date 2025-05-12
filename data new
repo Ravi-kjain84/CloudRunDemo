@@ -1,4 +1,38 @@
 
+<p>Hi <b>{name}</b>,</p>
+
+<p>
+We have noted that your required trainings have not been marked complete as of the 9th May deadline. These trainings are part of our enablement efforts under the Digital Acceleration and Agile Ways of Working initiatives.
+</p>
+
+<p>
+<b>Required Trainings:</b><br>
+- <a href="https://your-degreed-link.com">Digital Acceleration Program – Foundation (Degreed)</a><br>
+- <a href="https://your-linkedin-link.com">Agile Requirements Foundation (LinkedIn Learning)</a>
+</p>
+
+<p>
+You are requested to complete the following by <b>Friday, 16 May 2025</b>:
+</p>
+
+<ol>
+  <li>If you have already completed the trainings, please ensure your status is updated in the SharePoint Training Tracker.</li>
+  <li>If not, please complete them and update your status accordingly.</li>
+</ol>
+
+<p>
+We will consolidate the training compliance status after Friday and share the summary with relevant stakeholders. Your timely update will help ensure the records are accurate.
+</p>
+
+<p>
+For any clarifications or support, please reply to this email.
+</p>
+
+
+
+
+
+
 BODY_TEMPLATE = """
 <html>
 <body>
