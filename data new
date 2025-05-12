@@ -1,3 +1,44 @@
+
+import pandas as pd
+import win32com.client as win32
+
+# Load Excel data
+df = pd.read_excel("mail_data.xlsx")
+
+outlook = win32.Dispatch("Outlook.Application")
+namespace = outlook.GetNamespace("MAPI")
+target_folder = namespace.Folders("Shared Mailbox Name").Folders("Drafts")
+
+BODY_TEMPLATE = """
+<html>
+<body>
+<p>Hi <b>{Name}</b>,</p>
+{MessageBody}
+<p>Best regards,<br>Testing CoE Team</p>
+</body>
+</html>
+"""
+
+for index, row in df.iterrows():
+    try:
+        mail = outlook.CreateItem(0)
+        mail.SendUsingAccount = outlook.Session.Accounts.Item(1)  # adjust if needed
+        mail.To = row['email']
+        if pd.notna(row['cc']):
+            mail.CC = row['cc']
+        mail.Subject = row['subject']
+        mail.HTMLBody = BODY_TEMPLATE.format(Name=row['name'], MessageBody=row['messagebody'])
+
+        mail.Save()
+        mail.Move(target_folder)
+        print(f"[OK] Draft for {row['email']} saved.")
+
+    except Exception as e:
+        print(f"[ERROR] Row {index + 1}: {e}")
+
+
+
+
 <p>We hope this message finds you well.</p>
 
 <p><b>Action Required:</b> Please complete the required trainings as per the schedule.</p>
