@@ -1,3 +1,15 @@
+<p style="font-size:14px;">Hi <b>{Name}</b>,</p>
+
+<p style="color:#B22222; font-size:13px;"><u><b>Action Required:</b></u> Please complete the required trainings listed below.</p>
+
+<p>
+- <a href="https://degreed.com" style="color:#1a73e8;">Digital Acceleration Program</a><br>
+- <a href="https://linkedin.com" style="color:#1a73e8;">Agile Requirements Foundation</a>
+</p>
+
+<p style="font-size:12px; color:#333333;">Once completed, please update your status in the training tracker.</p>
+
+
 
 import pandas as pd
 import win32com.client as win32
