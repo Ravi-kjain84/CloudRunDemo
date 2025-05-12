@@ -1,3 +1,28 @@
+
+
+Hi {name},
+
+We have noted that your required trainings have not been marked complete as of the 9th May deadline. These trainings are part of our enablement efforts under the Digital Acceleration and Agile Ways of Working initiatives.
+
+Required Trainings:
+- Digital Acceleration Program – Foundation (Degreed)
+- Agile Requirements Foundation (LinkedIn Learning)
+
+You are requested to complete the following by **Friday, 16 May 2025**:
+1. If you have already completed the trainings, please ensure your status is updated in the SharePoint Training Tracker.
+2. If not, please complete them and update your status accordingly.
+
+We will consolidate the training compliance status after Friday and share the summary with relevant stakeholders. Your timely update will help ensure the records are accurate.
+
+For any clarifications or support, please reply to this email.
+
+Best regards,  
+Testing Center of Excellence Team  
+HSBC Global Finance
+
+
+
+
 Sub ActivateHyperlinkFormulasInColumn()
     Dim ws As Worksheet
     Dim cell As Range
