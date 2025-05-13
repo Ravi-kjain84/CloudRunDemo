@@ -1,5 +1,6 @@
 import win32com.client
 import pandas as pd
+from tqdm import tqdm
 
 class OutlookOrgExtractor:
     def __init__(self, input_file):
@@ -30,19 +31,23 @@ class OutlookOrgExtractor:
             employee_name = user.Name
             employee_email = user.PrimarySmtpAddress
             employee_title = user.JobTitle
+            employee_id = user.Alias  # Employee ID
 
             manager = user.Manager
             if manager:
                 manager_name = manager.Name
                 manager_email = manager.PrimarySmtpAddress
                 manager_title = manager.JobTitle
+                manager_id = manager.Alias  # Manager ID
             else:
-                manager_name = manager_email = manager_title = None
+                manager_name = manager_email = manager_title = manager_id = None
 
             return {
+                "Employee ID": employee_id,
                 "Employee Name": employee_name,
                 "Employee Email": employee_email,
                 "Employee Title": employee_title,
+                "Manager ID": manager_id,
                 "Manager Name": manager_name,
                 "Manager Email": manager_email,
                 "Manager Title": manager_title
@@ -64,12 +69,14 @@ class OutlookOrgExtractor:
 
     def run(self, output_file="employee_manager_with_roles.xlsx"):
         input_emails = self.load_input_emails()
-        for email in input_emails:
+        print(f"Processing {len(input_emails)} input emails...\n")
+
+        for email in tqdm(input_emails, desc="Progress", unit="employee"):
             self.crawl_upward(email)
 
         df = pd.DataFrame(self.org_chart).drop_duplicates()
         df.to_excel(output_file, index=False)
-        print(f"Hierarchy exported to {output_file}")
+        print(f"\nHierarchy exported to {output_file}")
 
 # Usage
 if __name__ == "__main__":
