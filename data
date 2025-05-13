@@ -7,98 +7,102 @@ class OutlookOrgExtractorByID:
         self.input_file = input_file
         self.visited = set()
         self.org_chart = []
-        self.outlook = win32com.client.Dispatch("Outlook.Application")
-        self.namespace = self.outlook.GetNamespace("MAPI")
-        # Locate Global Address List
-        self.gal = None
-        for al in self.namespace.AddressLists:
-            if "global address" in al.Name.lower():
-                self.gal = al
-                break
-        if not self.gal:
-            raise ValueError("Global Address List not found")
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        self.namespace = outlook.GetNamespace("MAPI")
 
-    def load_input_ids(self):
+    def load_input(self):
+        """Expect Excel/CSV with columns 'Employee ID' and optional 'Name'."""
         if self.input_file.lower().endswith(".csv"):
             df = pd.read_csv(self.input_file)
         else:
             df = pd.read_excel(self.input_file)
         if 'Employee ID' not in df.columns:
-            raise ValueError("Input file must contain 'Employee ID' column")
-        return df['Employee ID'].dropna().astype(str).unique().tolist()
+            raise ValueError("Input must have 'Employee ID' column")
+        # Name column is optional
+        return df[['Employee ID'] + ([ 'Name'] if 'Name' in df.columns else [])]
 
-    def resolve_all_users_by_id(self, emp_id):
-        """Return all ExchangeUser profiles matching the Alias in GAL."""
-        matched = []
-        entries = self.gal.AddressEntries
-        total = entries.Count
-        print(f"[INFO] Scanning {total} GAL entries for ID: {emp_id}")
-        for idx in tqdm(range(1, total+1), desc=f"GAL scan for {emp_id}", unit="entry", leave=False):
-            try:
-                entry = entries.Item(idx)
-                user = entry.GetExchangeUser()
-                if user and user.Alias == emp_id:
-                    matched.append(user)
-            except Exception:
-                continue
-        if not matched:
-            print(f"[SKIPPED] No profiles found for: {emp_id}")
-        else:
-            print(f"[FOUND] {len(matched)} profile(s) for {emp_id}")
-        return matched
-
-    def get_manager_info_by_user(self, user):
+    def _resolve(self, key):
+        """Helper: resolve a key via CreateRecipient, return ExchangeUser or None."""
         try:
-            info = {
-                "Employee ID": user.Alias,
-                "Employee Name": user.Name,
-                "Employee Email": user.PrimarySmtpAddress,
-                "Employee Title": user.JobTitle
-            }
-            mgr = user.Manager
-            if mgr:
-                info.update({
-                    "Manager ID": mgr.Alias,
-                    "Manager Name": mgr.Name,
-                    "Manager Email": mgr.PrimarySmtpAddress,
-                    "Manager Title": mgr.JobTitle
-                })
-            else:
-                info.update({
-                    "Manager ID": None,
-                    "Manager Name": None,
-                    "Manager Email": None,
-                    "Manager Title": None
-                })
-            return info
-        except Exception as e:
-            print(f"[ERROR] Retrieving manager for {user.Name}: {e}")
+            r = self.namespace.CreateRecipient(key)
+            r.Resolve()
+            if not r.Resolved:
+                return None
+            ae = r.AddressEntry
+            if ae.Type != "EX":
+                return None
+            user = ae.GetExchangeUser()
+            # apply your filters
+            if not user or 'other' in user.Name.lower() or not user.JobTitle:
+                return None
+            return user
+        except:
             return None
 
-    def crawl_upward(self, emp_id):
-        users = self.resolve_all_users_by_id(emp_id)
-        for user in users:
-            key = f"{user.Alias}::{user.Name}"
-            if key in self.visited:
-                continue
-            self.visited.add(key)
+    def resolve_user(self, emp_id, name=None):
+        # 1) Try by employee ID (alias)
+        user = self._resolve(emp_id)
+        if user:
+            return user
 
-            info = self.get_manager_info_by_user(user)
-            if info:
-                self.org_chart.append(info)
-                if info["Manager ID"]:
-                    self.crawl_upward(info["Manager ID"])
+        # 2) Fallback by name (if provided)
+        if name:
+            print(f"[FALLBACK] Resolving by name: {name}")
+            user = self._resolve(name)
+            if user:
+                return user
 
-    def run(self, output_file="employee_manager_with_roles_full.xlsx"):
-        input_ids = self.load_input_ids()
-        print(f"\nProcessing {len(input_ids)} Employee IDs...\n")
-        for emp_id in tqdm(input_ids, desc="Employees", unit="ID"):
-            self.crawl_upward(emp_id)
-        df = pd.DataFrame(self.org_chart).drop_duplicates()
-        df.to_excel(output_file, index=False)
-        print(f"\nExport complete: {output_file}")
+        # 3) Give up
+        print(f"[SKIPPED] Could not resolve ID '{emp_id}'" + (f" or name '{name}'" if name else ""))
+        return None
 
-# Usage
+    def get_record(self, user):
+        """Build the dict for one user + their manager info."""
+        emp = {
+            "Employee ID": user.Alias,
+            "Employee Name": user.Name,
+            "Employee Email": user.PrimarySmtpAddress,
+            "Employee Title": user.JobTitle
+        }
+        mgr = user.Manager
+        if mgr:
+            emp.update({
+                "Manager ID": mgr.Alias,
+                "Manager Name": mgr.Name,
+                "Manager Email": mgr.PrimarySmtpAddress,
+                "Manager Title": mgr.JobTitle
+            })
+        else:
+            emp.update({k: None for k in ("Manager ID","Manager Name","Manager Email","Manager Title")})
+        return emp
+
+    def crawl_upward(self, emp_id, name=None):
+        user = self.resolve_user(emp_id, name)
+        if not user:
+            return
+
+        key = f"{user.Alias}::{user.Name}"
+        if key in self.visited:
+            return
+        self.visited.add(key)
+
+        rec = self.get_record(user)
+        self.org_chart.append(rec)
+        # recurse on manager ID
+        if rec["Manager ID"]:
+            self.crawl_upward(rec["Manager ID"])
+
+    def run(self, output="hierarchy_output.xlsx"):
+        df_in = self.load_input()
+        rows = df_in.to_dict('records')
+
+        for r in tqdm(rows, desc="Employees", unit="emp"):
+            self.crawl_upward(str(r['Employee ID']), r.get('Name'))
+
+        pd.DataFrame(self.org_chart).drop_duplicates().to_excel(output, index=False)
+        print("Done. Output written to", output)
+
+
 if __name__ == "__main__":
     extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")
-    extractor.run()
+    extractor.run("employee_manager_with_roles.xlsx")
