@@ -9,73 +9,78 @@ class OutlookOrgExtractorByID:
         self.org_chart = []
         self.outlook = win32com.client.Dispatch("Outlook.Application")
         self.namespace = self.outlook.GetNamespace("MAPI")
-        self.gal = self.namespace.AddressLists["Global Address List"]
+        # Locate Global Address List
+        self.gal = None
+        for al in self.namespace.AddressLists:
+            if "global address" in al.Name.lower():
+                self.gal = al
+                break
+        if not self.gal:
+            raise ValueError("Global Address List not found")
 
     def load_input_ids(self):
-        if self.input_file.endswith(".csv"):
+        if self.input_file.lower().endswith(".csv"):
             df = pd.read_csv(self.input_file)
         else:
             df = pd.read_excel(self.input_file)
-
         if 'Employee ID' not in df.columns:
-            raise ValueError("Input file must have a column named 'Employee ID'.")
-
+            raise ValueError("Input file must contain 'Employee ID' column")
         return df['Employee ID'].dropna().astype(str).unique().tolist()
 
     def resolve_all_users_by_id(self, emp_id):
-        matched_users = []
-        print(f"[INFO] Resolving all profiles for ID: {emp_id}")
-        for entry in tqdm(self.gal.AddressEntries, desc=f"Scanning GAL for {emp_id}", unit="entry", leave=False):
+        """Return all ExchangeUser profiles matching the Alias in GAL."""
+        matched = []
+        entries = self.gal.AddressEntries
+        # Use Find and FindNext to quickly locate matches
+        match = entries.Find(f"[Alias] = '{emp_id}'")
+        while match:
             try:
-                user = entry.GetExchangeUser()
-                if not user:
-                    continue
-                if user.Alias == emp_id:
-                    matched_users.append(user)
+                user = match.GetExchangeUser()
+                if user:
+                    matched.append(user)
             except:
-                continue
-        if not matched_users:
+                pass
+            match = entries.FindNext()
+        if not matched:
             print(f"[SKIPPED] No profiles found for: {emp_id}")
-        return matched_users
+        return matched
 
     def get_manager_info_by_user(self, user):
         try:
-            employee_name = user.Name
-            employee_email = user.PrimarySmtpAddress
-            employee_title = user.JobTitle
-            employee_id = user.Alias
-
-            manager = user.Manager
-            if manager:
-                manager_name = manager.Name
-                manager_email = manager.PrimarySmtpAddress
-                manager_title = manager.JobTitle
-                manager_id = manager.Alias
-            else:
-                manager_name = manager_email = manager_title = manager_id = None
-
-            return {
-                "Employee ID": employee_id,
-                "Employee Name": employee_name,
-                "Employee Email": employee_email,
-                "Employee Title": employee_title,
-                "Manager ID": manager_id,
-                "Manager Name": manager_name,
-                "Manager Email": manager_email,
-                "Manager Title": manager_title
+            info = {
+                "Employee ID": user.Alias,
+                "Employee Name": user.Name,
+                "Employee Email": user.PrimarySmtpAddress,
+                "Employee Title": user.JobTitle
             }
-
+            mgr = user.Manager
+            if mgr:
+                info.update({
+                    "Manager ID": mgr.Alias,
+                    "Manager Name": mgr.Name,
+                    "Manager Email": mgr.PrimarySmtpAddress,
+                    "Manager Title": mgr.JobTitle
+                })
+            else:
+                info.update({
+                    "Manager ID": None,
+                    "Manager Name": None,
+                    "Manager Email": None,
+                    "Manager Title": None
+                })
+            return info
         except Exception as e:
-            print(f"[ERROR] Manager info retrieval failed for {user.Name}: {e}")
+            print(f"[ERROR] Retrieving manager for {user.Name}: {e}")
             return None
 
     def crawl_upward(self, emp_id):
+        # Resolve all matching profiles first
         users = self.resolve_all_users_by_id(emp_id)
         for user in users:
-            employee_alias = user.Alias + "::" + user.Name  # unique per profile
-            if employee_alias in self.visited:
+            key = f"{user.Alias}::{user.Name}"
+            if key in self.visited:
                 continue
-            self.visited.add(employee_alias)
+            self.visited.add(key)
 
             info = self.get_manager_info_by_user(user)
             if info:
@@ -83,18 +88,15 @@ class OutlookOrgExtractorByID:
                 if info["Manager ID"]:
                     self.crawl_upward(info["Manager ID"])
 
-    def run(self, output_file="employee_manager_with_roles_full_profiles.xlsx"):
+    def run(self, output_file="employee_manager_with_roles_full.xlsx"):
         input_ids = self.load_input_ids()
-        print(f"\nProcessing {len(input_ids)} input Employee IDs...\n")
-
-        for emp_id in tqdm(input_ids, desc="Processing Employees", unit="employee"):
+        print(f"\nProcessing {len(input_ids)} Employee IDs...\n")
+        for emp_id in tqdm(input_ids, desc="Employees", unit="ID"):
             self.crawl_upward(emp_id)
-
         df = pd.DataFrame(self.org_chart).drop_duplicates()
         df.to_excel(output_file, index=False)
-        print(f"\nHierarchy exported to {output_file}")
+        print(f"\nExport complete: {output_file}")
 
-# Usage
 if __name__ == "__main__":
     extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")
     extractor.run()
