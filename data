@@ -1,34 +1,128 @@
-def resolve_user_by_id(self, emp_id):
-    try:
-        # Step 1: Resolve recipient normally
-        recipient = self.namespace.CreateRecipient(emp_id)
-        recipient.Resolve()
+import win32com.client
+import pandas as pd
+from tqdm import tqdm
 
-        if not recipient.Resolved:
-            print(f"[SKIPPED] Cannot resolve: {emp_id}")
+class OutlookOrgExtractorByID:
+    def __init__(self, input_file):
+        self.input_file = input_file
+        self.visited = set()
+        self.org_chart = []
+        self.outlook = win32com.client.Dispatch("Outlook.Application")
+        self.namespace = self.outlook.GetNamespace("MAPI")
+        self.address_lists = self.namespace.AddressLists
+
+    def load_input_ids(self):
+        if self.input_file.endswith(".csv"):
+            df = pd.read_csv(self.input_file)
+        else:
+            df = pd.read_excel(self.input_file)
+
+        if 'Employee ID' not in df.columns:
+            raise ValueError("Input file must have a column named 'Employee ID'.")
+
+        return df['Employee ID'].dropna().astype(str).unique().tolist()
+
+    def resolve_user_by_id(self, emp_id):
+        try:
+            # Step 1: Fast resolution
+            recipient = self.namespace.CreateRecipient(emp_id)
+            recipient.Resolve()
+
+            if recipient.Resolved:
+                address_entry = recipient.AddressEntry
+                user = address_entry.GetExchangeUser()
+                if user and 'other' not in user.Name.lower() and user.JobTitle and user.JobTitle.strip():
+                    return user
+
+            # Step 2: Fallback — manual search in Global Address List
+            print(f"[INFO] Manual fallback resolution for: {emp_id}")
+            gal = self.namespace.AddressLists["Global Address List"]
+            found = False
+            for entry in tqdm(gal.AddressEntries, desc=f"Searching GAL for {emp_id}", unit="entry", leave=False):
+                try:
+                    user = entry.GetExchangeUser()
+                    if not user:
+                        continue
+                    if user.Alias != emp_id:
+                        continue
+                    if 'other' in user.Name.lower():
+                        continue
+                    if not user.JobTitle or user.JobTitle.strip() == "":
+                        continue
+                    print(f"[INFO] Resolved via GAL fallback: {user.Name}")
+                    return user
+                except:
+                    continue
+
+            print(f"[SKIPPED] No valid profile found for: {emp_id}")
             return None
 
-        address_entry = recipient.AddressEntry
-        if address_entry.Type != "EX":
-            print(f"[SKIPPED] Not an Exchange user: {emp_id}")
+        except Exception as e:
+            print(f"[ERROR] Exception while resolving {emp_id}: {e}")
             return None
 
-        user = address_entry.GetExchangeUser()
+    def get_manager_info_by_user(self, user):
+        try:
+            if not user:
+                return None
+
+            employee_name = user.Name
+            employee_email = user.PrimarySmtpAddress
+            employee_title = user.JobTitle
+            employee_id = user.Alias
+
+            manager = user.Manager
+            if manager:
+                manager_name = manager.Name
+                manager_email = manager.PrimarySmtpAddress
+                manager_title = manager.JobTitle
+                manager_id = manager.Alias
+            else:
+                manager_name = manager_email = manager_title = manager_id = None
+
+            return {
+                "Employee ID": employee_id,
+                "Employee Name": employee_name,
+                "Employee Email": employee_email,
+                "Employee Title": employee_title,
+                "Manager ID": manager_id,
+                "Manager Name": manager_name,
+                "Manager Email": manager_email,
+                "Manager Title": manager_title
+            }
+
+        except Exception as e:
+            print(f"[ERROR] Failed to retrieve manager info for {user.Name}: {e}")
+            return None
+
+    def crawl_upward(self, emp_id):
+        user = self.resolve_user_by_id(emp_id)
         if not user:
-            print(f"[SKIPPED] No ExchangeUser object: {emp_id}")
-            return None
+            return
 
-        # Step 2: Basic filtering (quick)
-        if 'other' in user.Name.lower():
-            print(f"[SKIPPED] Name contains 'Other': {user.Name}")
-            return None
+        employee_alias = user.Alias
+        if employee_alias in self.visited:
+            return
+        self.visited.add(employee_alias)
 
-        if not user.JobTitle or user.JobTitle.strip() == "":
-            print(f"[SKIPPED] Probably shared/delegate (no title): {emp_id}")
-            return None
+        info = self.get_manager_info_by_user(user)
+        if info:
+            self.org_chart.append(info)
+            if info["Manager ID"]:
+                self.crawl_upward(info["Manager ID"])
 
-        return user
+    def run(self, output_file="employee_manager_with_roles.xlsx"):
+        input_ids = self.load_input_ids()
+        print(f"\nProcessing {len(input_ids)} input Employee IDs...\n")
 
-    except Exception as e:
-        print(f"[ERROR] Exception while resolving {emp_id}: {e}")
-        return None
+        for emp_id in tqdm(input_ids, desc="Processing Employees", unit="employee"):
+            self.crawl_upward(emp_id)
+
+        df = pd.DataFrame(self.org_chart).drop_duplicates()
+        df.to_excel(output_file, index=False)
+        print(f"\nHierarchy exported to {output_file}")
+
+# Usage
+if __name__ == "__main__":
+    extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")
+    extractor.run()
