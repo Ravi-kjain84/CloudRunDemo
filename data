@@ -1,61 +1,102 @@
-import win32com.client
 import pandas as pd
 
-outlook = win32com.client.Dispatch("Outlook.Application")
-namespace = outlook.GetNamespace("MAPI")
+class OrgNode:
+    def __init__(self, name, email, title):
+        self.name = name
+        self.email = email
+        self.title = title
+        self.manager = None
 
-visited = set()
-org_chart = []
+    def set_manager(self, manager_node):
+        self.manager = manager_node
 
-def get_manager_info(email):
-    try:
-        recipient = namespace.CreateRecipient(email)
-        user = recipient.AddressEntry.GetExchangeUser()
-        if not user:
-            return None
+    def get_chain_upwards(self):
+        chain = [{
+            "Name": self.name,
+            "Email": self.email,
+            "Title": self.title
+        }]
+        current = self.manager
+        while current:
+            chain.append({
+                "Name": current.name,
+                "Email": current.email,
+                "Title": current.title
+            })
+            current = current.manager
+        return chain  # Order: employee → upward
 
-        employee_name = user.Name
-        employee_email = user.PrimarySmtpAddress
-        employee_title = user.JobTitle
+class OrgChartBuilder:
+    def __init__(self, hierarchy_file, department_map_file):
+        self.hierarchy_file = hierarchy_file
+        self.department_map_file = department_map_file
+        self.nodes = {}
+        self.department_map = {}
 
-        manager = user.Manager
-        if manager:
-            manager_name = manager.Name
-            manager_email = manager.PrimarySmtpAddress
-            manager_title = manager.JobTitle
-        else:
-            manager_name = manager_email = manager_title = None
+    def build_department_map(self):
+        df_map = pd.read_excel(self.department_map_file)
+        for _, row in df_map.iterrows():
+            key = str(row['Name']).strip().lower()
+            dept = str(row['Department']).strip()
+            self.department_map[key] = dept
 
-        return {
-            "Employee Name": employee_name,
-            "Employee Email": employee_email,
-            "Employee Title": employee_title,
-            "Manager Name": manager_name,
-            "Manager Email": manager_email,
-            "Manager Title": manager_title
-        }
+    def build_graph(self):
+        df = pd.read_excel(self.hierarchy_file)
+        for _, row in df.iterrows():
+            emp_email = row["Employee Email"]
+            emp_node = self.nodes.get(emp_email) or OrgNode(
+                row["Employee Name"], emp_email, row["Employee Title"])
+            self.nodes[emp_email] = emp_node
 
-    except Exception as e:
-        print(f"Error processing {email}: {e}")
-        return None
+            mgr_email = row["Manager Email"]
+            if pd.notnull(mgr_email):
+                mgr_node = self.nodes.get(mgr_email) or OrgNode(
+                    row["Manager Name"], mgr_email, row["Manager Title"])
+                self.nodes[mgr_email] = mgr_node
+                emp_node.set_manager(mgr_node)
 
-def crawl_upward(email):
-    if email in visited:
-        return
-    visited.add(email)
+    def resolve_multi_level_departments(self, chain):
+        department_levels = []
+        for person in reversed(chain):  # reverse to start from top-most
+            key_name = str(person["Name"]).strip().lower()
+            key_email = str(person["Email"]).strip().lower()
+            if key_name in self.department_map:
+                department = self.department_map[key_name]
+                if department not in department_levels:
+                    department_levels.append(department)
+            elif key_email in self.department_map:
+                department = self.department_map[key_email]
+                if department not in department_levels:
+                    department_levels.append(department)
+        return department_levels
 
-    info = get_manager_info(email)
-    if info and info["Manager Email"]:
-        org_chart.append(info)
-        crawl_upward(info["Manager Email"])
+    def export_hierarchy_flat_view(self, output_file):
+        flat_records = []
+        for node in self.nodes.values():
+            chain = node.get_chain_upwards()
+            row = {}
+            for i, level in enumerate(chain):
+                row[f"Level {i} Name"] = level["Name"]
+                row[f"Level {i} Title"] = level["Title"]
+                row[f"Level {i} Email"] = level["Email"]
 
-# Start from this email
-start_email = "rakesh.sharma@hsbc.co.in"
-crawl_upward(start_email)
+            # Add department levels from top-down
+            departments = self.resolve_multi_level_departments(chain)
+            for idx, dept in enumerate(departments):
+                row[f"Department Level {idx+1}"] = dept
 
-# Convert to DataFrame and export
-df = pd.DataFrame(org_chart)
-df.to_excel("employee_manager_with_roles.xlsx", index=False)
+            flat_records.append(row)
 
-print("Hierarchy saved with titles.")
+        df_flat = pd.DataFrame(flat_records)
+        df_flat.to_excel(output_file, index=False)
+        print(f"Multi-level department hierarchy written to {output_file}")
 
+# Usage
+if __name__ == "__main__":
+    builder = OrgChartBuilder(
+        hierarchy_file="employee_manager_with_roles.xlsx",
+        department_map_file="department_mapping.xlsx"
+    )
+    builder.build_department_map()
+    builder.build_graph()
+    builder.export_hierarchy_flat_view("flattened_hierarchy_with_multi_departments.xlsx")
