@@ -39,7 +39,7 @@ class OrgChartBuilder:
         self.input_employees_file = input_employees_file
 
         self.nodes          = {}
-        self.department_map = {}
+        self.department_map = {}   # maps email → department
         self.input_emails   = set()
 
     def load_input_emails(self):
@@ -57,10 +57,12 @@ class OrgChartBuilder:
 
     def build_department_map(self):
         df = pd.read_excel(self.department_map_file)
+        if 'Email' not in df.columns or 'Department' not in df.columns:
+            raise ValueError("Department map must have 'Email' and 'Department' columns.")
         for _, row in df.iterrows():
-            key   = str(row['Name']).strip().lower()
-            dept  = str(row['Department']).strip()
-            self.department_map[key] = dept
+            key_email = str(row['Email']).strip().lower()
+            dept      = str(row['Department']).strip()
+            self.department_map[key_email] = dept
 
     def build_graph(self):
         df = pd.read_excel(self.hierarchy_file)
@@ -68,10 +70,10 @@ class OrgChartBuilder:
             emp_email = row["Employee Email"]
             emp_id    = str(row["Employee ID"]).strip()
             emp_node  = self.nodes.get(emp_email) or OrgNode(
-                name=row["Employee Name"],
-                email=emp_email,
-                emp_id=emp_id,
-                title=row["Employee Title"]
+                name = row["Employee Name"],
+                email= emp_email,
+                emp_id= emp_id,
+                title= row["Employee Title"]
             )
             self.nodes[emp_email] = emp_node
 
@@ -80,10 +82,10 @@ class OrgChartBuilder:
                          if pd.notnull(row["Manager ID"]) else "")
             if pd.notnull(mgr_email):
                 mgr_node = self.nodes.get(mgr_email) or OrgNode(
-                    name=row["Manager Name"],
-                    email=mgr_email,
-                    emp_id=mgr_id,
-                    title=row["Manager Title"]
+                    name = row["Manager Name"],
+                    email= mgr_email,
+                    emp_id= mgr_id,
+                    title= row["Manager Title"]
                 )
                 self.nodes[mgr_email] = mgr_node
                 emp_node.set_manager(mgr_node)
@@ -91,14 +93,8 @@ class OrgChartBuilder:
     def resolve_multi_level_departments(self, chain):
         levels = []
         for person in reversed(chain):  # top-down
-            key_name  = person["Name"].strip().lower()
             key_email = person["Email"].strip().lower()
-            # match either by name or email in map
-            if key_name in self.department_map:
-                dept = self.department_map[key_name]
-                if dept not in levels:
-                    levels.append(dept)
-            elif key_email in self.department_map:
+            if key_email in self.department_map:
                 dept = self.department_map[key_email]
                 if dept not in levels:
                     levels.append(dept)
@@ -118,12 +114,12 @@ class OrgChartBuilder:
 
             # Flatten the chain into Level 0, Level 1, …
             for i, lvl in enumerate(chain):
-                row[f"Level {i} Name"]       = lvl["Name"]
-                row[f"Level {i} Email"]      = lvl["Email"]
+                row[f"Level {i} Name"]        = lvl["Name"]
+                row[f"Level {i} Email"]       = lvl["Email"]
                 row[f"Level {i} Employee ID"] = lvl["Employee ID"]
-                row[f"Level {i} Title"]      = lvl["Title"]
+                row[f"Level {i} Title"]       = lvl["Title"]
 
-            # Add multi-level departments
+            # Add multi-level departments by email map
             depts = self.resolve_multi_level_departments(chain)
             for j, dept in enumerate(depts, start=1):
                 row[f"Department Level {j}"] = dept
@@ -138,8 +134,8 @@ class OrgChartBuilder:
 if __name__ == "__main__":
     builder = OrgChartBuilder(
         hierarchy_file="employee_manager_with_roles.xlsx",
-        department_map_file="department_mapping.xlsx",
-        input_employees_file="input_employees.xlsx"    # now uses Email
+        department_map_file="department_mapping.xlsx",   # now must have Email + Department
+        input_employees_file="input_employees.xlsx"      # must have Email
     )
     builder.load_input_emails()
     builder.build_department_map()
