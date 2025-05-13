@@ -31,18 +31,20 @@ class OutlookOrgExtractorByID:
         """Return all ExchangeUser profiles matching the Alias in GAL."""
         matched = []
         entries = self.gal.AddressEntries
-        # Use Find and FindNext to quickly locate matches
-        match = entries.Find(f"[Alias] = '{emp_id}'")
-        while match:
+        total = entries.Count
+        print(f"[INFO] Scanning {total} GAL entries for ID: {emp_id}")
+        for idx in tqdm(range(1, total+1), desc=f"GAL scan for {emp_id}", unit="entry", leave=False):
             try:
-                user = match.GetExchangeUser()
-                if user:
+                entry = entries.Item(idx)
+                user = entry.GetExchangeUser()
+                if user and user.Alias == emp_id:
                     matched.append(user)
-            except:
-                pass
-            match = entries.FindNext()
+            except Exception:
+                continue
         if not matched:
             print(f"[SKIPPED] No profiles found for: {emp_id}")
+        else:
+            print(f"[FOUND] {len(matched)} profile(s) for {emp_id}")
         return matched
 
     def get_manager_info_by_user(self, user):
@@ -74,7 +76,6 @@ class OutlookOrgExtractorByID:
             return None
 
     def crawl_upward(self, emp_id):
-        # Resolve all matching profiles first
         users = self.resolve_all_users_by_id(emp_id)
         for user in users:
             key = f"{user.Alias}::{user.Name}"
@@ -97,6 +98,7 @@ class OutlookOrgExtractorByID:
         df.to_excel(output_file, index=False)
         print(f"\nExport complete: {output_file}")
 
+# Usage
 if __name__ == "__main__":
     extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")
     extractor.run()
