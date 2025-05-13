@@ -9,6 +9,7 @@ class OutlookOrgExtractorByID:
         self.org_chart = []
         self.outlook = win32com.client.Dispatch("Outlook.Application")
         self.namespace = self.outlook.GetNamespace("MAPI")
+        self.address_lists = self.namespace.AddressLists
 
     def load_input_ids(self):
         if self.input_file.endswith(".csv"):
@@ -22,39 +23,26 @@ class OutlookOrgExtractorByID:
         return df['Employee ID'].dropna().astype(str).unique().tolist()
 
     def resolve_user_by_id(self, emp_id):
-        try:
-            recipient = self.namespace.CreateRecipient(emp_id)
-            recipient.Resolve()
-
-            if not recipient.Resolved:
-                print(f"[SKIPPED] Cannot resolve: {emp_id}")
-                return None
-
-            address_entry = recipient.AddressEntry
-            if address_entry.Type != "EX":
-                print(f"[SKIPPED] Not an Exchange user: {emp_id}")
-                return None
-
-            user = address_entry.GetExchangeUser()
-            if not user:
-                print(f"[SKIPPED] No ExchangeUser object: {emp_id}")
-                return None
-
-            # Skip if Name contains 'Other'
-            if 'other' in user.Name.lower():
-                print(f"[SKIPPED] Name contains 'Other': {user.Name}")
-                return None
-
-            # Skip if no JobTitle (likely delegate/shared mailbox)
-            if not user.JobTitle or user.JobTitle.strip() == "":
-                print(f"[SKIPPED] Probably shared/delegate (no title): {emp_id}")
-                return None
-
-            return user
-
-        except Exception as e:
-            print(f"[ERROR] Exception while resolving {emp_id}: {e}")
-            return None
+        # Search all address entries in all address lists
+        for addr_list in self.address_lists:
+            if not addr_list.IsReadOnly:
+                continue
+            for entry in addr_list.AddressEntries:
+                try:
+                    user = entry.GetExchangeUser()
+                    if not user:
+                        continue
+                    if user.Alias != emp_id:
+                        continue
+                    if 'other' in user.Name.lower():
+                        continue
+                    if not user.JobTitle or user.JobTitle.strip() == "":
+                        continue
+                    return user  # Found valid user
+                except Exception:
+                    continue
+        print(f"[SKIPPED] No valid profile found for: {emp_id}")
+        return None
 
     def get_manager_info_by_user(self, user):
         try:
@@ -64,7 +52,7 @@ class OutlookOrgExtractorByID:
             employee_name = user.Name
             employee_email = user.PrimarySmtpAddress
             employee_title = user.JobTitle
-            employee_id = user.Alias  # Treating Alias as Employee ID
+            employee_id = user.Alias
 
             manager = user.Manager
             if manager:
@@ -98,13 +86,14 @@ class OutlookOrgExtractorByID:
         user = self.resolve_user_by_id(emp_id)
         info = self.get_manager_info_by_user(user)
 
-        if info and info["Manager ID"]:
+        if info:
             self.org_chart.append(info)
-            self.crawl_upward(info["Manager ID"])
+            if info["Manager ID"]:
+                self.crawl_upward(info["Manager ID"])
 
     def run(self, output_file="employee_manager_with_roles.xlsx"):
         input_ids = self.load_input_ids()
-        print(f"Processing {len(input_ids)} input Employee IDs...\n")
+        print(f"\nProcessing {len(input_ids)} input Employee IDs...\n")
 
         for emp_id in tqdm(input_ids, desc="Progress", unit="employee"):
             self.crawl_upward(emp_id)
@@ -115,5 +104,5 @@ class OutlookOrgExtractorByID:
 
 # Usage
 if __name__ == "__main__":
-    extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")  # Must have column: 'Employee ID'
+    extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")
     extractor.run()
