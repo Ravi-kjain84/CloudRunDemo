@@ -1,133 +1,147 @@
-import win32com.client
 import pandas as pd
-from tqdm import tqdm
 
-class OutlookOrgExtractor:
-    def __init__(self, input_file):
-        self.input_file = input_file
-        self.visited = set()
-        self.org_chart = []
-        self.outlook = win32com.client.Dispatch("Outlook.Application")
-        self.namespace = self.outlook.GetNamespace("MAPI")
-        # The GAL is used for alias‐based lookups
-        self.gal = self.namespace.AddressLists["Global Address List"]
+class OrgNode:
+    def __init__(self, name, email, emp_id, title):
+        self.name    = name
+        self.email   = email
+        self.emp_id  = emp_id
+        self.title   = title
+        self.manager = None
 
-    def load_input(self):
-        """Reads Excel/CSV with columns: Email, Employee ID, Name (Name optional)."""
-        if self.input_file.lower().endswith(".csv"):
-            df = pd.read_csv(self.input_file, dtype=str)
-        else:
-            df = pd.read_excel(self.input_file, dtype=str)
-        # Ensure these columns exist (Name is optional)
-        if 'Employee ID' not in df.columns and 'Email' not in df.columns and 'Name' not in df.columns:
-            raise ValueError("Input must have at least one of: 'Email', 'Employee ID', 'Name'")
-        return df.fillna('')[['Email','Employee ID','Name']]
+    def set_manager(self, mgr_node):
+        self.manager = mgr_node
 
-    def resolve_by_email(self, email):
-        r = self.namespace.CreateRecipient(email)
-        r.Resolve()
-        if r.Resolved and r.AddressEntry.Type == "EX":
-            return r.AddressEntry.GetExchangeUser()
-        return None
+    def get_chain_upwards(self):
+        chain = [{
+            "Name":         self.name,
+            "Email":        self.email,
+            "Employee ID":  self.emp_id,
+            "Title":        self.title
+        }]
+        current = self.manager
+        while current:
+            chain.append({
+                "Name":         current.name,
+                "Email":        current.email,
+                "Employee ID":  current.emp_id,
+                "Title":        current.title
+            })
+            current = current.manager
+        return chain
 
-    def resolve_by_alias(self, alias):
-        """Scan GAL for all entries whose Alias matches exactly."""
-        matches = []
-        total = self.gal.AddressEntries.Count
-        for i in range(1, total+1):
-            try:
-                entry = self.gal.AddressEntries.Item(i)
-                user  = entry.GetExchangeUser()
-                if user and user.Alias == alias:
-                    matches.append(user)
-            except:
-                continue
-        return matches
+class OrgChartBuilder:
+    def __init__(self,
+                 hierarchy_file: str,
+                 department_map_file: str,
+                 input_employees_file: str):
+        self.hierarchy_file       = hierarchy_file
+        self.department_map_file  = department_map_file
+        self.input_employees_file = input_employees_file
 
-    def resolve_by_name(self, name):
-        r = self.namespace.CreateRecipient(name)
-        r.Resolve()
-        if r.Resolved and r.AddressEntry.Type == "EX":
-            return [r.AddressEntry.GetExchangeUser()]
-        return []
+        self.nodes          = {}
+        self.department_map = {}
+        self.input_emails   = set()
 
-    def resolve_users(self, email, emp_id, name):
-        # 1) Try email
-        if email:
-            user = self.resolve_by_email(email)
-            if user:
-                return [user]
-        # 2) Try alias
-        if emp_id:
-            users = self.resolve_by_alias(emp_id)
-            if users:
-                return users
-        # 3) Try name
-        if name:
-            return self.resolve_by_name(name)
-        return []
+    def load_input_emails(self):
+        df = (pd.read_csv(self.input_employees_file)
+              if self.input_employees_file.lower().endswith(".csv")
+              else pd.read_excel(self.input_employees_file))
+        if 'Email' not in df.columns:
+            raise ValueError("Input file must contain an 'Email' column.")
+        # Normalize to lowercase for comparison
+        self.input_emails = set(df['Email']
+                                 .dropna()
+                                 .str.strip()
+                                 .str.lower()
+                                 .tolist())
 
-    def get_manager_info(self, user):
-        try:
-            rec = {
-                "Employee ID":    user.Alias,
-                "Employee Name":  user.Name,
-                "Employee Email": user.PrimarySmtpAddress,
-                "Employee Title": user.JobTitle
-            }
-            mgr = user.Manager
-            if mgr:
-                rec.update({
-                    "Manager ID":    mgr.Alias,
-                    "Manager Name":  mgr.Name,
-                    "Manager Email": mgr.PrimarySmtpAddress,
-                    "Manager Title": mgr.JobTitle
-                })
-            else:
-                rec.update({
-                    "Manager ID":    "",
-                    "Manager Name":  "",
-                    "Manager Email": "",
-                    "Manager Title": ""
-                })
-            return rec
-        except Exception as e:
-            print(f"[ERROR] get_manager_info failed for {user.Name}: {e}")
-            return None
+    def build_department_map(self):
+        df = pd.read_excel(self.department_map_file)
+        for _, row in df.iterrows():
+            key   = str(row['Name']).strip().lower()
+            dept  = str(row['Department']).strip()
+            self.department_map[key] = dept
 
-    def crawl(self, email='', emp_id='', name=''):
-        users = self.resolve_users(email, emp_id, name)
-        for user in users:
-            key = f"{user.Alias}::{user.Name}"
-            if key in self.visited:
-                continue
-            self.visited.add(key)
-
-            info = self.get_manager_info(user)
-            if info:
-                self.org_chart.append(info)
-                # Recurse on manager
-                self.crawl(
-                    email=info["Manager Email"],
-                    emp_id=info["Manager ID"],
-                    name=info["Manager Name"]
-                )
-
-    def run(self, output_file="hierarchy.xlsx"):
-        df_in = self.load_input()
-        records = df_in.to_dict('records')
-
-        print(f"Processing {len(records)} input rows...\n")
-        for row in tqdm(records, desc="Resolving", unit="row"):
-            self.crawl(
-                email=row.get('Email',''),
-                emp_id=row.get('Employee ID',''),
-                name=row.get('Name','')
+    def build_graph(self):
+        df = pd.read_excel(self.hierarchy_file)
+        for _, row in df.iterrows():
+            emp_email = row["Employee Email"]
+            emp_id    = str(row["Employee ID"]).strip()
+            emp_node  = self.nodes.get(emp_email) or OrgNode(
+                name=row["Employee Name"],
+                email=emp_email,
+                emp_id=emp_id,
+                title=row["Employee Title"]
             )
+            self.nodes[emp_email] = emp_node
 
-        pd.DataFrame(self.org_chart).drop_duplicates().to_excel(output_file, index=False)
-        print(f"\nDone. Output saved to {output_file}")
+            mgr_email = row["Manager Email"]
+            mgr_id    = (str(row["Manager ID"]).strip()
+                         if pd.notnull(row["Manager ID"]) else "")
+            if pd.notnull(mgr_email):
+                mgr_node = self.nodes.get(mgr_email) or OrgNode(
+                    name=row["Manager Name"],
+                    email=mgr_email,
+                    emp_id=mgr_id,
+                    title=row["Manager Title"]
+                )
+                self.nodes[mgr_email] = mgr_node
+                emp_node.set_manager(mgr_node)
+
+    def resolve_multi_level_departments(self, chain):
+        levels = []
+        for person in reversed(chain):  # top-down
+            key_name  = person["Name"].strip().lower()
+            key_email = person["Email"].strip().lower()
+            # match either by name or email in map
+            if key_name in self.department_map:
+                dept = self.department_map[key_name]
+                if dept not in levels:
+                    levels.append(dept)
+            elif key_email in self.department_map:
+                dept = self.department_map[key_email]
+                if dept not in levels:
+                    levels.append(dept)
+        return levels
+
+    def export_hierarchy_flat_view(self, output_file):
+        records = []
+        for node in self.nodes.values():
+            # filter by base email
+            if node.email.strip().lower() not in self.input_emails:
+                continue
+
+            chain = node.get_chain_upwards()
+
+            # Start each row with Base Email
+            row = {"Base Email": node.email}
+
+            # Flatten the chain into Level 0, Level 1, …
+            for i, lvl in enumerate(chain):
+                row[f"Level {i} Name"]       = lvl["Name"]
+                row[f"Level {i} Email"]      = lvl["Email"]
+                row[f"Level {i} Employee ID"] = lvl["Employee ID"]
+                row[f"Level {i} Title"]      = lvl["Title"]
+
+            # Add multi-level departments
+            depts = self.resolve_multi_level_departments(chain)
+            for j, dept in enumerate(depts, start=1):
+                row[f"Department Level {j}"] = dept
+
+            records.append(row)
+
+        df_flat = pd.DataFrame(records)
+        df_flat.to_excel(output_file, index=False)
+        print(f"Exported filtered hierarchy to {output_file}")
+        return df_flat
 
 if __name__ == "__main__":
-    extractor = OutlookOrgExtractor("input_employees.xlsx")
-    extractor.run("employee_manager_with_roles.xlsx")
+    builder = OrgChartBuilder(
+        hierarchy_file="employee_manager_with_roles.xlsx",
+        department_map_file="department_mapping.xlsx",
+        input_employees_file="input_employees.xlsx"    # now uses Email
+    )
+    builder.load_input_emails()
+    builder.build_department_map()
+    builder.build_graph()
+    builder.export_hierarchy_flat_view("filtered_flattened_hierarchy_by_email.xlsx")
