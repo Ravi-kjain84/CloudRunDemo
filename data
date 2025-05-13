@@ -1,48 +1,133 @@
 import win32com.client
+import pandas as pd
+from tqdm import tqdm
 
-def get_email_from_alias(emp_id):
-    """
-    Return a list of SMTP addresses for all GAL entries whose Alias matches emp_id.
-    """
-    outlook   = win32com.client.Dispatch("Outlook.Application")
-    namespace = outlook.GetNamespace("MAPI")
+class OutlookOrgExtractor:
+    def __init__(self, input_file):
+        self.input_file = input_file
+        self.visited = set()
+        self.org_chart = []
+        self.outlook = win32com.client.Dispatch("Outlook.Application")
+        self.namespace = self.outlook.GetNamespace("MAPI")
+        # The GAL is used for alias‐based lookups
+        self.gal = self.namespace.AddressLists["Global Address List"]
 
-    # 1) Grab the Global Address List
-    try:
-        gal = next(al for al in namespace.AddressLists 
-                   if "global address" in al.Name.lower())
-    except StopIteration:
-        raise RuntimeError("Global Address List not found")
+    def load_input(self):
+        """Reads Excel/CSV with columns: Email, Employee ID, Name (Name optional)."""
+        if self.input_file.lower().endswith(".csv"):
+            df = pd.read_csv(self.input_file, dtype=str)
+        else:
+            df = pd.read_excel(self.input_file, dtype=str)
+        # Ensure these columns exist (Name is optional)
+        if 'Employee ID' not in df.columns and 'Email' not in df.columns and 'Name' not in df.columns:
+            raise ValueError("Input must have at least one of: 'Email', 'Employee ID', 'Name'")
+        return df.fillna('')[['Email','Employee ID','Name']]
 
-    entries = gal.AddressEntries
+    def resolve_by_email(self, email):
+        r = self.namespace.CreateRecipient(email)
+        r.Resolve()
+        if r.Resolved and r.AddressEntry.Type == "EX":
+            return r.AddressEntry.GetExchangeUser()
+        return None
 
-    # 2) Filter server-side by Alias
-    try:
-        # Restrict uses a DASL-style filter
-        filt    = f"[Alias] = '{emp_id}'"
-        matches = entries.Restrict(filt)
-    except Exception as e:
-        print(f"Filter failed: {e}")
+    def resolve_by_alias(self, alias):
+        """Scan GAL for all entries whose Alias matches exactly."""
+        matches = []
+        total = self.gal.AddressEntries.Count
+        for i in range(1, total+1):
+            try:
+                entry = self.gal.AddressEntries.Item(i)
+                user  = entry.GetExchangeUser()
+                if user and user.Alias == alias:
+                    matches.append(user)
+            except:
+                continue
+        return matches
+
+    def resolve_by_name(self, name):
+        r = self.namespace.CreateRecipient(name)
+        r.Resolve()
+        if r.Resolved and r.AddressEntry.Type == "EX":
+            return [r.AddressEntry.GetExchangeUser()]
         return []
 
-    # 3) Extract SMTP addresses
-    emails = []
-    for entry in matches:
-        try:
-            user = entry.GetExchangeUser()
+    def resolve_users(self, email, emp_id, name):
+        # 1) Try email
+        if email:
+            user = self.resolve_by_email(email)
             if user:
-                emails.append(user.PrimarySmtpAddress)
-        except:
-            continue
+                return [user]
+        # 2) Try alias
+        if emp_id:
+            users = self.resolve_by_alias(emp_id)
+            if users:
+                return users
+        # 3) Try name
+        if name:
+            return self.resolve_by_name(name)
+        return []
 
-    return emails
+    def get_manager_info(self, user):
+        try:
+            rec = {
+                "Employee ID":    user.Alias,
+                "Employee Name":  user.Name,
+                "Employee Email": user.PrimarySmtpAddress,
+                "Employee Title": user.JobTitle
+            }
+            mgr = user.Manager
+            if mgr:
+                rec.update({
+                    "Manager ID":    mgr.Alias,
+                    "Manager Name":  mgr.Name,
+                    "Manager Email": mgr.PrimarySmtpAddress,
+                    "Manager Title": mgr.JobTitle
+                })
+            else:
+                rec.update({
+                    "Manager ID":    "",
+                    "Manager Name":  "",
+                    "Manager Email": "",
+                    "Manager Title": ""
+                })
+            return rec
+        except Exception as e:
+            print(f"[ERROR] get_manager_info failed for {user.Name}: {e}")
+            return None
+
+    def crawl(self, email='', emp_id='', name=''):
+        users = self.resolve_users(email, emp_id, name)
+        for user in users:
+            key = f"{user.Alias}::{user.Name}"
+            if key in self.visited:
+                continue
+            self.visited.add(key)
+
+            info = self.get_manager_info(user)
+            if info:
+                self.org_chart.append(info)
+                # Recurse on manager
+                self.crawl(
+                    email=info["Manager Email"],
+                    emp_id=info["Manager ID"],
+                    name=info["Manager Name"]
+                )
+
+    def run(self, output_file="hierarchy.xlsx"):
+        df_in = self.load_input()
+        records = df_in.to_dict('records')
+
+        print(f"Processing {len(records)} input rows...\n")
+        for row in tqdm(records, desc="Resolving", unit="row"):
+            self.crawl(
+                email=row.get('Email',''),
+                emp_id=row.get('Employee ID',''),
+                name=row.get('Name','')
+            )
+
+        pd.DataFrame(self.org_chart).drop_duplicates().to_excel(output_file, index=False)
+        print(f"\nDone. Output saved to {output_file}")
 
 if __name__ == "__main__":
-    emp_id = input("Enter Employee ID (Alias): ").strip()
-    result = get_email_from_alias(emp_id)
-    if result:
-        print("Found email(s):")
-        for addr in result:
-            print("  ", addr)
-    else:
-        print(f"No SMTP address found for Alias={emp_id}")
+    extractor = OutlookOrgExtractor("input_employees.xlsx")
+    extractor.run("employee_manager_with_roles.xlsx")
