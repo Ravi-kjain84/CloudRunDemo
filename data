@@ -1,107 +1,48 @@
-from rapidfuzz import process, fuzz
 import win32com.client
 
-def fetch_candidates(prefix, namespace, limit=20):
-    """Return up to `limit` users whose displayName starts with `prefix`."""
-    gal = namespace.AddressLists["Global Address List"].AddressEntries
-    candidates = []
-    for entry in gal:
+def get_email_from_alias(emp_id):
+    """
+    Return a list of SMTP addresses for all GAL entries whose Alias matches emp_id.
+    """
+    outlook   = win32com.client.Dispatch("Outlook.Application")
+    namespace = outlook.GetNamespace("MAPI")
+
+    # 1) Grab the Global Address List
+    try:
+        gal = next(al for al in namespace.AddressLists 
+                   if "global address" in al.Name.lower())
+    except StopIteration:
+        raise RuntimeError("Global Address List not found")
+
+    entries = gal.AddressEntries
+
+    # 2) Filter server-side by Alias
+    try:
+        # Restrict uses a DASL-style filter
+        filt    = f"[Alias] = '{emp_id}'"
+        matches = entries.Restrict(filt)
+    except Exception as e:
+        print(f"Filter failed: {e}")
+        return []
+
+    # 3) Extract SMTP addresses
+    emails = []
+    for entry in matches:
         try:
             user = entry.GetExchangeUser()
-            if user and user.Name.lower().startswith(prefix.lower()):
-                candidates.append(user)
-                if len(candidates) >= limit:
-                    break
+            if user:
+                emails.append(user.PrimarySmtpAddress)
         except:
             continue
-    return candidates
 
-def resolve_fuzzy(identifier):
-    outlook   = win32com.client.Dispatch("Outlook.Application")
-    namespace = outlook.GetNamespace("MAPI")
-
-    # Try exact alias/email/name first
-    r = namespace.CreateRecipient(identifier); r.Resolve()
-    if r.Resolved:
-        return r.AddressEntry.GetExchangeUser()
-
-    # Fuzzy fallback on name prefix
-    candidates = fetch_candidates(identifier, namespace)
-    if not candidates:
-        print("No candidates for fuzzy match.")
-        return None
-
-    # Score by name similarity
-    names = [u.Name for u in candidates]
-    best, score, idx = process.extractOne(
-        identifier, names, scorer=fuzz.WRatio
-    )
-    if score < 70:
-        print(f"No good fuzzy match (best score={score}).")
-        return None
-
-    user = candidates[idx]
-    print(f"Fuzzy matched to {user.Name} (score={score}).")
-    return user
-
-# Usage
-user = resolve_fuzzy("A. Raturi")
-if user:
-    print(user.Name, user.Alias, user.JobTitle)
-
-
----/------
-
-import win32com.client
-
-def resolve_by_alias(alias, namespace):
-    r = namespace.CreateRecipient(alias)
-    r.Resolve()
-    if r.Resolved:
-        return r.AddressEntry.GetExchangeUser()
-    return None
-
-def resolve_by_email(email, namespace):
-    r = namespace.CreateRecipient(email)
-    r.Resolve()
-    if r.Resolved:
-        return r.AddressEntry.GetExchangeUser()
-    return None
-
-def resolve_by_name(name, namespace):
-    r = namespace.CreateRecipient(name)
-    r.Resolve()
-    if r.Resolved:
-        return r.AddressEntry.GetExchangeUser()
-    return None
-
-def resolve(identifier):
-    outlook   = win32com.client.Dispatch("Outlook.Application")
-    namespace = outlook.GetNamespace("MAPI")
-
-    user = None
-
-    # 1) Try alias (Employee ID)
-    user = resolve_by_alias(identifier, namespace)
-
-    # 2) Try email address
-    if not user and "@" in identifier:
-        user = resolve_by_email(identifier, namespace)
-
-    # 3) Finally try display name
-    if not user:
-        user = resolve_by_name(identifier, namespace)
-
-    if not user:
-        print(f"❌ Could not resolve: {identifier!r}")
-        return
-
-    # Print out the info
-    print(f"Name:               {user.Name}")
-    print(f"Email:              {user.PrimarySmtpAddress}")
-    print(f"Job Title:          {user.JobTitle}")
-    print(f"Employee ID (Alias): {user.Alias}")
+    return emails
 
 if __name__ == "__main__":
-    ident = input("Enter Employee ID, Email or Name: ").strip()
-    resolve(ident)
+    emp_id = input("Enter Employee ID (Alias): ").strip()
+    result = get_email_from_alias(emp_id)
+    if result:
+        print("Found email(s):")
+        for addr in result:
+            print("  ", addr)
+    else:
+        print(f"No SMTP address found for Alias={emp_id}")
