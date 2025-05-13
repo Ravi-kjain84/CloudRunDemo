@@ -1,60 +1,77 @@
 import win32com.client
+import pandas as pd
 
-def inspect_user_properties(name_or_email):
-    outlook = win32com.client.Dispatch("Outlook.Application")
-    namespace = outlook.GetNamespace("MAPI")
-    
-    try:
-        recipient = namespace.CreateRecipient(name_or_email)
-        user = recipient.AddressEntry.GetExchangeUser()
+class OutlookOrgExtractor:
+    def __init__(self, input_file):
+        self.input_file = input_file
+        self.visited = set()
+        self.org_chart = []
+        self.outlook = win32com.client.Dispatch("Outlook.Application")
+        self.namespace = self.outlook.GetNamespace("MAPI")
 
-        if not user:
-            print("User not found.")
+    def load_input_emails(self):
+        if self.input_file.endswith(".csv"):
+            df = pd.read_csv(self.input_file)
+        else:
+            df = pd.read_excel(self.input_file)
+
+        if 'Email' not in df.columns:
+            raise ValueError("Input file must have a column named 'Email'.")
+
+        return df['Email'].dropna().unique().tolist()
+
+    def get_manager_info(self, email):
+        try:
+            recipient = self.namespace.CreateRecipient(email)
+            user = recipient.AddressEntry.GetExchangeUser()
+            if not user:
+                return None
+
+            employee_name = user.Name
+            employee_email = user.PrimarySmtpAddress
+            employee_title = user.JobTitle
+
+            manager = user.Manager
+            if manager:
+                manager_name = manager.Name
+                manager_email = manager.PrimarySmtpAddress
+                manager_title = manager.JobTitle
+            else:
+                manager_name = manager_email = manager_title = None
+
+            return {
+                "Employee Name": employee_name,
+                "Employee Email": employee_email,
+                "Employee Title": employee_title,
+                "Manager Name": manager_name,
+                "Manager Email": manager_email,
+                "Manager Title": manager_title
+            }
+
+        except Exception as e:
+            print(f"Error processing {email}: {e}")
+            return None
+
+    def crawl_upward(self, email):
+        if email in self.visited:
             return
+        self.visited.add(email)
 
-        print(f"Name: {user.Name}")
-        print(f"Email: {user.PrimarySmtpAddress}")
-        print(f"Title: {user.JobTitle}")
+        info = self.get_manager_info(email)
+        if info and info["Manager Email"]:
+            self.org_chart.append(info)
+            self.crawl_upward(info["Manager Email"])
 
-        # Try known properties where Employee ID may reside
-        try:
-            print(f"EmployeeID (user.EmployeeID): {user.EmployeeID}")
-        except Exception:
-            print("EmployeeID not accessible.")
+    def run(self, output_file="employee_manager_with_roles.xlsx"):
+        input_emails = self.load_input_emails()
+        for email in input_emails:
+            self.crawl_upward(email)
 
-        try:
-            print(f"ID (user.ID): {user.ID}")
-        except Exception:
-            print("ID not accessible.")
+        df = pd.DataFrame(self.org_chart).drop_duplicates()
+        df.to_excel(output_file, index=False)
+        print(f"Hierarchy exported to {output_file}")
 
-        try:
-            print(f"Alias (user.Alias): {user.Alias}")
-        except Exception:
-            print("Alias not accessible.")
-
-        try:
-            print(f"BusinessTelephoneNumber: {user.BusinessTelephoneNumber}")
-        except Exception:
-            pass
-
-        try:
-            print(f"OfficeLocation: {user.OfficeLocation}")
-        except Exception:
-            pass
-
-        # Attempt to enumerate all available attributes
-        print("\n--- All Available Properties ---")
-        for attr in dir(user):
-            if not attr.startswith("_"):
-                try:
-                    value = getattr(user, attr)
-                    if not callable(value):
-                        print(f"{attr}: {value}")
-                except:
-                    continue
-
-    except Exception as e:
-        print(f"Error resolving user: {e}")
-
-# Test with known name or email
-inspect_user_properties("Rakesh Sharma")
+# Usage
+if __name__ == "__main__":
+    extractor = OutlookOrgExtractor("input_emails.xlsx")  # Must have column: 'Email'
+    extractor.run()
