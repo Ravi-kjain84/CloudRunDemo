@@ -1,50 +1,42 @@
-project_key = "FINOTC"
-labels = ["LIQ:Q125:Committed", "RWA:Q324:Baselined"]
+import win32com.client
+import time
 
-jql_query = {}
+outlook = win32com.client.Dispatch("Outlook.Application")
+namespace = outlook.GetNamespace("MAPI")
 
-for label in labels:
-    escaped_label = label.replace('"', '\\"')  # Safety if label has quotes
-    jql_query[f"Bug: {label}"] = (
-        f'issueFunction in issuesInEpics("labels in (\\"{escaped_label}\\")") AND issuetype = Bug'
-    )
-    jql_query[f"Epic: {label}"] = (
-        f'project = "{project_key}" AND labels in ("{escaped_label}") AND issuetype = Epic'
-    )
-    jql_query[f"Test: {label}"] = (
-        f'issueFunction in issuesInEpics("labels in (\\"{escaped_label}\\")") AND issuetype = Test'
-    )
+visited = set()
+org_chart = []
 
+def get_manager(employee_email):
+    try:
+        recipient = namespace.CreateRecipient(employee_email)
+        user = recipient.AddressEntry.GetExchangeUser()
+        if user is None:
+            return None
+        manager = user.Manager
+        if manager:
+            return manager.PrimarySmtpAddress
+    except Exception as e:
+        print(f"Error processing {employee_email}: {e}")
+        return None
 
-project_key = "FINOTC"
-labels = ["LIQ:Q125:Committed", "RWA:Q324:Baselined"]
+def crawl_org(email):
+    if email in visited:
+        return
+    visited.add(email)
+    
+    manager_email = get_manager(email)
+    if manager_email:
+        org_chart.append((email, manager_email))
+        crawl_org(manager_email)  # Go upwards
 
-jql_query = {}
+# Starting point: e.g., CEO or known person in the chain
+start_email = "rakesh.sharma@hsbc.co.in"
+crawl_org(start_email)
 
-for label in labels:
-    jql_query[f"Bug: {label}"] = f'issueFunction in issuesInEpics("labels in (\\"{label}\\")") AND issuetype = Bug'
-    jql_query[f"Epic: {label}"] = f'project = "{project_key}" AND labels in ("{label}") AND issuetype = Epic'
-    jql_query[f"Test: {label}"] = f'issueFunction in issuesInEpics("labels in (\\"{label}\\")") AND issuetype = Test'
+# Save results
+import pandas as pd
+df = pd.DataFrame(org_chart, columns=["Employee", "Manager"])
+df.to_excel("org_hierarchy_from_outlook.xlsx", index=False)
 
-jql_query = {
-    "Bug: LIQ:Q125:Committed": 'issueFunction in issuesInEpics("labels in (\\"LIQ:Q125:Committed\\")") AND issuetype = Bug',
-    "Epic: LIQ:Q125:Committed": 'project = "FINOTC" AND labels in ("LIQ:Q125:Committed") AND issuetype = Epic',
-    "Test: LIQ:Q125:Committed": 'issueFunction in issuesInEpics("labels in (\\"LIQ:Q125:Committed\\")") AND issuetype = Test'
-}
-
-
-
-
-final_jql_query = f'project = "{project_key}" AND issueFunction in issuesInEpics("labels in (\\"{label_value}\\")") AND issuetype = Bug'
-
-
-
-
-label_value = "LIQ:Q1'25"
-project_key = "FINOTC"
-
-final_jql_query = (
-    f'project = "{project_key}" AND '
-    f'issueFunction in issuesInEpics("labels in (\\"{label_value}\\")") AND '
-    'issuetype = Bug'
-)
+print("Hierarchy extraction complete.")
