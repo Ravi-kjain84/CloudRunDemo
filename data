@@ -1,108 +1,26 @@
 import win32com.client
-import pandas as pd
-from tqdm import tqdm
 
-class OutlookOrgExtractorByID:
-    def __init__(self, input_file):
-        self.input_file = input_file
-        self.visited = set()
-        self.org_chart = []
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        self.namespace = outlook.GetNamespace("MAPI")
-
-    def load_input(self):
-        """Expect Excel/CSV with columns 'Employee ID' and optional 'Name'."""
-        if self.input_file.lower().endswith(".csv"):
-            df = pd.read_csv(self.input_file)
-        else:
-            df = pd.read_excel(self.input_file)
-        if 'Employee ID' not in df.columns:
-            raise ValueError("Input must have 'Employee ID' column")
-        # Name column is optional
-        return df[['Employee ID'] + ([ 'Name'] if 'Name' in df.columns else [])]
-
-    def _resolve(self, key):
-        """Helper: resolve a key via CreateRecipient, return ExchangeUser or None."""
-        try:
-            r = self.namespace.CreateRecipient(key)
-            r.Resolve()
-            if not r.Resolved:
-                return None
-            ae = r.AddressEntry
-            if ae.Type != "EX":
-                return None
-            user = ae.GetExchangeUser()
-            # apply your filters
-            if not user or 'other' in user.Name.lower() or not user.JobTitle:
-                return None
-            return user
-        except:
-            return None
-
-    def resolve_user(self, emp_id, name=None):
-        # 1) Try by employee ID (alias)
-        user = self._resolve(emp_id)
-        if user:
-            return user
-
-        # 2) Fallback by name (if provided)
-        if name:
-            print(f"[FALLBACK] Resolving by name: {name}")
-            user = self._resolve(name)
-            if user:
-                return user
-
-        # 3) Give up
-        print(f"[SKIPPED] Could not resolve ID '{emp_id}'" + (f" or name '{name}'" if name else ""))
-        return None
-
-    def get_record(self, user):
-        """Build the dict for one user + their manager info."""
-        emp = {
-            "Employee ID": user.Alias,
-            "Employee Name": user.Name,
-            "Employee Email": user.PrimarySmtpAddress,
-            "Employee Title": user.JobTitle
-        }
-        mgr = user.Manager
-        if mgr:
-            emp.update({
-                "Manager ID": mgr.Alias,
-                "Manager Name": mgr.Name,
-                "Manager Email": mgr.PrimarySmtpAddress,
-                "Manager Title": mgr.JobTitle
-            })
-        else:
-            emp.update({k: None for k in ("Manager ID","Manager Name","Manager Email","Manager Title")})
-        return emp
-
-    def crawl_upward(self, emp_id, name=None):
-        user = self.resolve_user(emp_id, name)
-        if not user:
-            return
-
-        key = f"{user.Alias}::{user.Name}"
-        if key in self.visited:
-            return
-        self.visited.add(key)
-
-        rec = self.get_record(user)
-        self.org_chart.append(rec)
-        # recurse on manager ID
-        if rec["Manager ID"]:
-            self.crawl_upward(rec["Manager ID"])
-
-    def run(self, output="hierarchy_output.xlsx"):
-        df_in = self.load_input()
-        rows = df_in.to_dict('records')
-
-        for r in tqdm(rows, desc="Employees", unit="emp"):
-            self.crawl_upward(str(r['Employee ID']), r.get('Name'))
-
-        pd.DataFrame(self.org_chart).drop_duplicates().to_excel(output, index=False)
-        print("Done. Output written to", output)
-
+def resolve(identifier):
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    namespace = outlook.GetNamespace("MAPI")
+    
+    recipient = namespace.CreateRecipient(identifier)
+    recipient.Resolve()
+    if not recipient.Resolved:
+        print(f"Could not resolve: {identifier}")
+        return
+    
+    entry = recipient.AddressEntry
+    user = entry.GetExchangeUser()
+    if not user:
+        print(f"No Exchange user found for: {identifier}")
+        return
+    
+    print("Name:             ", user.Name)
+    print("Email:            ", user.PrimarySmtpAddress)
+    print("Job Title:        ", user.JobTitle)
+    print("Employee ID (Alias):", user.Alias)
 
 if __name__ == "__main__":
-    extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")
-    extractor.run("employee_manager_with_roles.xlsx")
+    ident = input("Enter an Employee ID or Name: ").strip()
+    resolve(ident)
