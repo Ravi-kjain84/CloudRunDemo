@@ -1,108 +1,15 @@
-import win32com.client
-import pandas as pd
-from tqdm import tqdm
+def crawl_upward(self, emp_id):
+    user = self.resolve_user_by_id(emp_id)
+    if not user:
+        return
 
-class OutlookOrgExtractorByID:
-    def __init__(self, input_file):
-        self.input_file = input_file
-        self.visited = set()
-        self.org_chart = []
-        self.outlook = win32com.client.Dispatch("Outlook.Application")
-        self.namespace = self.outlook.GetNamespace("MAPI")
-        self.address_lists = self.namespace.AddressLists
+    employee_alias = user.Alias
+    if employee_alias in self.visited:
+        return
+    self.visited.add(employee_alias)
 
-    def load_input_ids(self):
-        if self.input_file.endswith(".csv"):
-            df = pd.read_csv(self.input_file)
-        else:
-            df = pd.read_excel(self.input_file)
-
-        if 'Employee ID' not in df.columns:
-            raise ValueError("Input file must have a column named 'Employee ID'.")
-
-        return df['Employee ID'].dropna().astype(str).unique().tolist()
-
-    def resolve_user_by_id(self, emp_id):
-        # Search all address entries in all address lists
-        for addr_list in self.address_lists:
-            if not addr_list.IsReadOnly:
-                continue
-            for entry in addr_list.AddressEntries:
-                try:
-                    user = entry.GetExchangeUser()
-                    if not user:
-                        continue
-                    if user.Alias != emp_id:
-                        continue
-                    if 'other' in user.Name.lower():
-                        continue
-                    if not user.JobTitle or user.JobTitle.strip() == "":
-                        continue
-                    return user  # Found valid user
-                except Exception:
-                    continue
-        print(f"[SKIPPED] No valid profile found for: {emp_id}")
-        return None
-
-    def get_manager_info_by_user(self, user):
-        try:
-            if not user:
-                return None
-
-            employee_name = user.Name
-            employee_email = user.PrimarySmtpAddress
-            employee_title = user.JobTitle
-            employee_id = user.Alias
-
-            manager = user.Manager
-            if manager:
-                manager_name = manager.Name
-                manager_email = manager.PrimarySmtpAddress
-                manager_title = manager.JobTitle
-                manager_id = manager.Alias
-            else:
-                manager_name = manager_email = manager_title = manager_id = None
-
-            return {
-                "Employee ID": employee_id,
-                "Employee Name": employee_name,
-                "Employee Email": employee_email,
-                "Employee Title": employee_title,
-                "Manager ID": manager_id,
-                "Manager Name": manager_name,
-                "Manager Email": manager_email,
-                "Manager Title": manager_title
-            }
-
-        except Exception as e:
-            print(f"[ERROR] Failed to retrieve manager info for {user.Name}: {e}")
-            return None
-
-    def crawl_upward(self, emp_id):
-        if emp_id in self.visited:
-            return
-        self.visited.add(emp_id)
-
-        user = self.resolve_user_by_id(emp_id)
-        info = self.get_manager_info_by_user(user)
-
-        if info:
-            self.org_chart.append(info)
-            if info["Manager ID"]:
-                self.crawl_upward(info["Manager ID"])
-
-    def run(self, output_file="employee_manager_with_roles.xlsx"):
-        input_ids = self.load_input_ids()
-        print(f"\nProcessing {len(input_ids)} input Employee IDs...\n")
-
-        for emp_id in tqdm(input_ids, desc="Progress", unit="employee"):
-            self.crawl_upward(emp_id)
-
-        df = pd.DataFrame(self.org_chart).drop_duplicates()
-        df.to_excel(output_file, index=False)
-        print(f"\nHierarchy exported to {output_file}")
-
-# Usage
-if __name__ == "__main__":
-    extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")
-    extractor.run()
+    info = self.get_manager_info_by_user(user)
+    if info:
+        self.org_chart.append(info)
+        if info["Manager ID"]:
+            self.crawl_upward(info["Manager ID"])
