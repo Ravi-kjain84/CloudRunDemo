@@ -1,3 +1,57 @@
+from rapidfuzz import process, fuzz
+import win32com.client
+
+def fetch_candidates(prefix, namespace, limit=20):
+    """Return up to `limit` users whose displayName starts with `prefix`."""
+    gal = namespace.AddressLists["Global Address List"].AddressEntries
+    candidates = []
+    for entry in gal:
+        try:
+            user = entry.GetExchangeUser()
+            if user and user.Name.lower().startswith(prefix.lower()):
+                candidates.append(user)
+                if len(candidates) >= limit:
+                    break
+        except:
+            continue
+    return candidates
+
+def resolve_fuzzy(identifier):
+    outlook   = win32com.client.Dispatch("Outlook.Application")
+    namespace = outlook.GetNamespace("MAPI")
+
+    # Try exact alias/email/name first
+    r = namespace.CreateRecipient(identifier); r.Resolve()
+    if r.Resolved:
+        return r.AddressEntry.GetExchangeUser()
+
+    # Fuzzy fallback on name prefix
+    candidates = fetch_candidates(identifier, namespace)
+    if not candidates:
+        print("No candidates for fuzzy match.")
+        return None
+
+    # Score by name similarity
+    names = [u.Name for u in candidates]
+    best, score, idx = process.extractOne(
+        identifier, names, scorer=fuzz.WRatio
+    )
+    if score < 70:
+        print(f"No good fuzzy match (best score={score}).")
+        return None
+
+    user = candidates[idx]
+    print(f"Fuzzy matched to {user.Name} (score={score}).")
+    return user
+
+# Usage
+user = resolve_fuzzy("A. Raturi")
+if user:
+    print(user.Name, user.Alias, user.JobTitle)
+
+
+---/------
+
 import win32com.client
 
 def resolve_by_alias(alias, namespace):
