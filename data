@@ -1,26 +1,43 @@
 import win32com.client
 
+def resolve_by_id(emp_id, namespace):
+    """Try resolving by Alias (Employee ID)."""
+    r = namespace.CreateRecipient(emp_id)
+    r.Resolve()
+    if r.Resolved:
+        user = r.AddressEntry.GetExchangeUser()
+        return user
+    return None
+
+def resolve_by_name(name, namespace):
+    """Try resolving by Display Name."""
+    r = namespace.CreateRecipient(name)
+    r.Resolve()
+    if r.Resolved:
+        return r.AddressEntry.GetExchangeUser()
+    return None
+
 def resolve(identifier):
-    outlook = win32com.client.Dispatch("Outlook.Application")
+    outlook   = win32com.client.Dispatch("Outlook.Application")
     namespace = outlook.GetNamespace("MAPI")
-    
-    recipient = namespace.CreateRecipient(identifier)
-    recipient.Resolve()
-    if not recipient.Resolved:
-        print(f"Could not resolve: {identifier}")
-        return
-    
-    entry = recipient.AddressEntry
-    user = entry.GetExchangeUser()
+
+    # 1) Attempt as Employee ID (alias)
+    user = resolve_by_id(identifier, namespace)
+
+    # 2) Fallback to display name
     if not user:
-        print(f"No Exchange user found for: {identifier}")
+        user = resolve_by_name(identifier, namespace)
+
+    if not user:
+        print(f"❌ Could not resolve: {identifier!r}")
         return
-    
-    print("Name:             ", user.Name)
-    print("Email:            ", user.PrimarySmtpAddress)
-    print("Job Title:        ", user.JobTitle)
-    print("Employee ID (Alias):", user.Alias)
+
+    # Print out the info
+    print(f"Name:              {user.Name}")
+    print(f"Email:             {user.PrimarySmtpAddress}")
+    print(f"Job Title:         {user.JobTitle}")
+    print(f"Employee ID (Alias): {user.Alias}")
 
 if __name__ == "__main__":
-    ident = input("Enter an Employee ID or Name: ").strip()
+    ident = input("Enter Employee ID or Name: ").strip()
     resolve(ident)
