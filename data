@@ -2,7 +2,7 @@ import win32com.client
 import pandas as pd
 from tqdm import tqdm
 
-class OutlookOrgExtractor:
+class OutlookOrgExtractorByID:
     def __init__(self, input_file):
         self.input_file = input_file
         self.visited = set()
@@ -10,35 +10,43 @@ class OutlookOrgExtractor:
         self.outlook = win32com.client.Dispatch("Outlook.Application")
         self.namespace = self.outlook.GetNamespace("MAPI")
 
-    def load_input_emails(self):
+    def load_input_ids(self):
         if self.input_file.endswith(".csv"):
             df = pd.read_csv(self.input_file)
         else:
             df = pd.read_excel(self.input_file)
 
-        if 'Email' not in df.columns:
-            raise ValueError("Input file must have a column named 'Email'.")
+        if 'Employee ID' not in df.columns:
+            raise ValueError("Input file must have a column named 'Employee ID'.")
 
-        return df['Email'].dropna().unique().tolist()
+        return df['Employee ID'].dropna().astype(str).unique().tolist()
 
-    def get_manager_info(self, email):
+    def resolve_user_by_id(self, emp_id):
         try:
-            recipient = self.namespace.CreateRecipient(email)
+            # Simulate Outlook "Ctrl+K" resolution by ID
+            recipient = self.namespace.CreateRecipient(emp_id)
+            recipient.Resolve()
             user = recipient.AddressEntry.GetExchangeUser()
+            return user
+        except:
+            return None
+
+    def get_manager_info_by_user(self, user):
+        try:
             if not user:
                 return None
 
             employee_name = user.Name
             employee_email = user.PrimarySmtpAddress
             employee_title = user.JobTitle
-            employee_id = user.Alias  # Employee ID
+            employee_id = user.Alias  # Treating Alias as Employee ID
 
             manager = user.Manager
             if manager:
                 manager_name = manager.Name
                 manager_email = manager.PrimarySmtpAddress
                 manager_title = manager.JobTitle
-                manager_id = manager.Alias  # Manager ID
+                manager_id = manager.Alias
             else:
                 manager_name = manager_email = manager_title = manager_id = None
 
@@ -54,25 +62,27 @@ class OutlookOrgExtractor:
             }
 
         except Exception as e:
-            print(f"Error processing {email}: {e}")
+            print(f"Error retrieving info for user {user.Name}: {e}")
             return None
 
-    def crawl_upward(self, email):
-        if email in self.visited:
+    def crawl_upward(self, emp_id):
+        if emp_id in self.visited:
             return
-        self.visited.add(email)
+        self.visited.add(emp_id)
 
-        info = self.get_manager_info(email)
-        if info and info["Manager Email"]:
+        user = self.resolve_user_by_id(emp_id)
+        info = self.get_manager_info_by_user(user)
+
+        if info and info["Manager ID"]:
             self.org_chart.append(info)
-            self.crawl_upward(info["Manager Email"])
+            self.crawl_upward(info["Manager ID"])
 
     def run(self, output_file="employee_manager_with_roles.xlsx"):
-        input_emails = self.load_input_emails()
-        print(f"Processing {len(input_emails)} input emails...\n")
+        input_ids = self.load_input_ids()
+        print(f"Processing {len(input_ids)} input Employee IDs...\n")
 
-        for email in tqdm(input_emails, desc="Progress", unit="employee"):
-            self.crawl_upward(email)
+        for emp_id in tqdm(input_ids, desc="Progress", unit="employee"):
+            self.crawl_upward(emp_id)
 
         df = pd.DataFrame(self.org_chart).drop_duplicates()
         df.to_excel(output_file, index=False)
@@ -80,5 +90,5 @@ class OutlookOrgExtractor:
 
 # Usage
 if __name__ == "__main__":
-    extractor = OutlookOrgExtractor("input_emails.xlsx")  # Must have column: 'Email'
+    extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")  # Must have column: 'Employee ID'
     extractor.run()
