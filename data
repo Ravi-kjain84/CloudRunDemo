@@ -1,5 +1,5 @@
 import win32com.client
-import time
+import pandas as pd
 
 outlook = win32com.client.Dispatch("Outlook.Application")
 namespace = outlook.GetNamespace("MAPI")
@@ -7,36 +7,54 @@ namespace = outlook.GetNamespace("MAPI")
 visited = set()
 org_chart = []
 
-def get_manager(employee_email):
+def get_manager_info(email):
     try:
-        recipient = namespace.CreateRecipient(employee_email)
+        recipient = namespace.CreateRecipient(email)
         user = recipient.AddressEntry.GetExchangeUser()
-        if user is None:
+        if not user:
             return None
+
+        employee_name = user.Name
+        employee_email = user.PrimarySmtpAddress
+        employee_title = user.JobTitle
+
         manager = user.Manager
         if manager:
-            return manager.PrimarySmtpAddress
+            manager_name = manager.Name
+            manager_email = manager.PrimarySmtpAddress
+            manager_title = manager.JobTitle
+        else:
+            manager_name = manager_email = manager_title = None
+
+        return {
+            "Employee Name": employee_name,
+            "Employee Email": employee_email,
+            "Employee Title": employee_title,
+            "Manager Name": manager_name,
+            "Manager Email": manager_email,
+            "Manager Title": manager_title
+        }
+
     except Exception as e:
-        print(f"Error processing {employee_email}: {e}")
+        print(f"Error processing {email}: {e}")
         return None
 
-def crawl_org(email):
+def crawl_upward(email):
     if email in visited:
         return
     visited.add(email)
-    
-    manager_email = get_manager(email)
-    if manager_email:
-        org_chart.append((email, manager_email))
-        crawl_org(manager_email)  # Go upwards
 
-# Starting point: e.g., CEO or known person in the chain
+    info = get_manager_info(email)
+    if info and info["Manager Email"]:
+        org_chart.append(info)
+        crawl_upward(info["Manager Email"])
+
+# Start from this email
 start_email = "rakesh.sharma@hsbc.co.in"
-crawl_org(start_email)
+crawl_upward(start_email)
 
-# Save results
-import pandas as pd
-df = pd.DataFrame(org_chart, columns=["Employee", "Manager"])
-df.to_excel("org_hierarchy_from_outlook.xlsx", index=False)
+# Convert to DataFrame and export
+df = pd.DataFrame(org_chart)
+df.to_excel("employee_manager_with_roles.xlsx", index=False)
 
-print("Hierarchy extraction complete.")
+print("Hierarchy saved with titles.")
