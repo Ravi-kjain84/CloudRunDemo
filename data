@@ -98,14 +98,13 @@ class OutlookOrgExtractorByID:
         user = self.resolve_user_by_id(emp_id)
         info = self.get_manager_info_by_user(user)
 
-        if info:
+        if info and info["Manager ID"]:
             self.org_chart.append(info)
-            if info["Manager ID"]:
-                self.crawl_upward(info["Manager ID"])
+            self.crawl_upward(info["Manager ID"])
 
     def run(self, output_file="employee_manager_with_roles.xlsx"):
         input_ids = self.load_input_ids()
-        print(f"\nProcessing {len(input_ids)} input Employee IDs...\n")
+        print(f"Processing {len(input_ids)} input Employee IDs...\n")
 
         for emp_id in tqdm(input_ids, desc="Progress", unit="employee"):
             self.crawl_upward(emp_id)
@@ -116,5 +115,5 @@ class OutlookOrgExtractorByID:
 
 # Usage
 if __name__ == "__main__":
-    extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")  # Must have 'Employee ID' column
+    extractor = OutlookOrgExtractorByID("input_employee_ids.xlsx")  # Must have column: 'Employee ID'
     extractor.run()
