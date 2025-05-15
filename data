@@ -1,17 +1,27 @@
-import os
 import pandas as pd
+import os
 
-def main_jira_csv_writer_py():
-    # Sample data
-    df = pd.DataFrame({"ID": [1, 2], "Status": ["Open", "Closed"]})
+def generate_input_employees():
+    # Determine the current script folder
+    base_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Step 1: Get path to parent (Governance/)
-    current_dir = os.path.dirname(__file__)  # RKJ_main_simplified/
-    parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))  # Governance/
+    # File paths
+    jira_logs_path = os.path.join(base_dir, "jira_logs.csv")
+    output_path = os.path.join(base_dir, "input_employees.xlsx")
 
-    # Step 2: Define full output path in parent
-    output_path = os.path.join(parent_dir, "JIRA_output.csv")
+    # Read the source file
+    df = pd.read_csv(jira_logs_path, dtype=str)
 
-    # Step 3: Write the file
-    df.to_csv(output_path, index=False)
-    print(f"Output written to: {output_path}")
+    # Select required columns and drop blank rows
+    df_filtered = df[["assignee_email_id", "assignee_employee_id", "assignee"]].dropna(how="any")
+
+    # Remove duplicates
+    df_filtered = df_filtered.drop_duplicates()
+
+    # Rename columns
+    df_filtered.columns = ["Email", "Employee ID", "Name"]
+
+    # Write to Excel (Sheet1)
+    df_filtered.to_excel(output_path, index=False, sheet_name="Sheet1")
+
+    print(f"Input employees file generated: {output_path}")
