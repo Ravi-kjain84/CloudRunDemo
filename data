@@ -1,10 +1,17 @@
-from jira import JIRA
+import os
+import pandas as pd
 
-jira = JIRA(server='https://your-jira-instance.atlassian.net', basic_auth=('your_email', 'your_api_token'))
+def main_jira_csv_writer_py():
+    # Sample data
+    df = pd.DataFrame({"ID": [1, 2], "Status": ["Open", "Closed"]})
 
-issue = jira.issue('PROJECT-123')  # Use any valid issue key
-assignee = issue.fields.assignee
+    # Step 1: Get path to parent (Governance/)
+    current_dir = os.path.dirname(__file__)  # RKJ_main_simplified/
+    parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))  # Governance/
 
-print("Display Name:", assignee.displayName)
-print("Account ID:", assignee.accountId)
-print("Email Address (if available):", getattr(assignee, 'emailAddress', 'Not Accessible'))
+    # Step 2: Define full output path in parent
+    output_path = os.path.join(parent_dir, "JIRA_output.csv")
+
+    # Step 3: Write the file
+    df.to_csv(output_path, index=False)
+    print(f"Output written to: {output_path}")
