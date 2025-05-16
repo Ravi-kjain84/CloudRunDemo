@@ -1,15 +1,32 @@
+# Define file paths and key columns
+jira_csv_path = '/path/to/jira-logs.csv'
+flattened_xlsx_path = '/path/to/flattened.xlsx'
+jira_key_column = 'emp_id'  # Column in jira-logs.csv
+flattened_key_column = 'employee_id'  # Column in flattened.xlsx
+
+# Call the function
+merge_jira_with_flattened(jira_csv_path, flattened_xlsx_path, jira_key_column, flattened_key_column)
+
+
+
+-----
+
 import pandas as pd
 import os
 
-def merge_jira_with_flattened(jira_csv_path: str, flattened_xlsx_path: str, key_column: str = 'employee_id') -> None:
+def merge_jira_with_flattened(jira_csv_path: str,
+                               flattened_xlsx_path: str,
+                               jira_key_column: str,
+                               flattened_key_column: str) -> None:
     """
-    Merges additional columns from flattened.xlsx into jira-logs.csv based on a common key.
+    Merges additional columns from flattened.xlsx into jira-logs.csv based on specified key columns.
     The jira-logs.csv file is updated in place.
 
     Parameters:
     - jira_csv_path (str): Path to the jira-logs.csv file.
     - flattened_xlsx_path (str): Path to the flattened.xlsx file.
-    - key_column (str): The column name to join on. Defaults to 'employee_id'.
+    - jira_key_column (str): The column name in jira-logs.csv to join on.
+    - flattened_key_column (str): The column name in flattened.xlsx to join on.
 
     Returns:
     - None
@@ -21,17 +38,25 @@ def merge_jira_with_flattened(jira_csv_path: str, flattened_xlsx_path: str, key_
         # Read the flattened Excel file
         df_flattened = pd.read_excel(flattened_xlsx_path)
 
-        # Ensure the key column exists in both dataframes
-        if key_column not in df_jira.columns:
-            raise KeyError(f"'{key_column}' not found in jira-logs.csv.")
-        if key_column not in df_flattened.columns:
-            raise KeyError(f"'{key_column}' not found in flattened.xlsx.")
+        # Ensure the key columns exist in both dataframes
+        if jira_key_column not in df_jira.columns:
+            raise KeyError(f"'{jira_key_column}' not found in jira-logs.csv.")
+        if flattened_key_column not in df_flattened.columns:
+            raise KeyError(f"'{flattened_key_column}' not found in flattened.xlsx.")
 
         # Identify new columns to add (excluding the key column)
-        new_columns = [col for col in df_flattened.columns if col != key_column]
+        new_columns = [col for col in df_flattened.columns if col != flattened_key_column]
 
-        # Merge the dataframes on the key column
-        df_merged = pd.merge(df_jira, df_flattened[[key_column] + new_columns], on=key_column, how='left')
+        # Merge the dataframes on the specified key columns
+        df_merged = pd.merge(df_jira,
+                             df_flattened[[flattened_key_column] + new_columns],
+                             how='left',
+                             left_on=jira_key_column,
+                             right_on=flattened_key_column)
+
+        # Drop the redundant key column from flattened.xlsx if it's different
+        if jira_key_column != flattened_key_column:
+            df_merged.drop(columns=[flattened_key_column], inplace=True)
 
         # Overwrite the original jira-logs.csv file
         df_merged.to_csv(jira_csv_path, index=False)
