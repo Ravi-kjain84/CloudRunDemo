@@ -1,27 +1,41 @@
 import pandas as pd
 import os
 
-def generate_input_employees():
-    # Determine the current script folder
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+def merge_jira_with_flattened(jira_csv_path: str, flattened_xlsx_path: str, key_column: str = 'employee_id') -> None:
+    """
+    Merges additional columns from flattened.xlsx into jira-logs.csv based on a common key.
+    The jira-logs.csv file is updated in place.
 
-    # File paths
-    jira_logs_path = os.path.join(base_dir, "jira_logs.csv")
-    output_path = os.path.join(base_dir, "input_employees.xlsx")
+    Parameters:
+    - jira_csv_path (str): Path to the jira-logs.csv file.
+    - flattened_xlsx_path (str): Path to the flattened.xlsx file.
+    - key_column (str): The column name to join on. Defaults to 'employee_id'.
 
-    # Read the source file
-    df = pd.read_csv(jira_logs_path, dtype=str)
+    Returns:
+    - None
+    """
+    try:
+        # Read the jira-logs CSV file
+        df_jira = pd.read_csv(jira_csv_path)
 
-    # Select required columns and drop blank rows
-    df_filtered = df[["assignee_email_id", "assignee_employee_id", "assignee"]].dropna(how="any")
+        # Read the flattened Excel file
+        df_flattened = pd.read_excel(flattened_xlsx_path)
 
-    # Remove duplicates
-    df_filtered = df_filtered.drop_duplicates()
+        # Ensure the key column exists in both dataframes
+        if key_column not in df_jira.columns:
+            raise KeyError(f"'{key_column}' not found in jira-logs.csv.")
+        if key_column not in df_flattened.columns:
+            raise KeyError(f"'{key_column}' not found in flattened.xlsx.")
 
-    # Rename columns
-    df_filtered.columns = ["Email", "Employee ID", "Name"]
+        # Identify new columns to add (excluding the key column)
+        new_columns = [col for col in df_flattened.columns if col != key_column]
 
-    # Write to Excel (Sheet1)
-    df_filtered.to_excel(output_path, index=False, sheet_name="Sheet1")
+        # Merge the dataframes on the key column
+        df_merged = pd.merge(df_jira, df_flattened[[key_column] + new_columns], on=key_column, how='left')
 
-    print(f"Input employees file generated: {output_path}")
+        # Overwrite the original jira-logs.csv file
+        df_merged.to_csv(jira_csv_path, index=False)
+        print(f"Successfully updated '{jira_csv_path}' with additional columns from '{flattened_xlsx_path}'.")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
