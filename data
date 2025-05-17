@@ -1,66 +1,10 @@
-# Define file paths and key columns
-jira_csv_path = '/path/to/jira-logs.csv'
-flattened_xlsx_path = '/path/to/flattened.xlsx'
-jira_key_column = 'emp_id'  # Column in jira-logs.csv
-flattened_key_column = 'employee_id'  # Column in flattened.xlsx
+def load_jql_queries_from_excel(file_path: str, sheet_name: str = 'Sheet1') -> dict:
+    df = pd.read_excel(file_path, sheet_name=sheet_name, dtype=str)
+    jql_query = {}
 
-# Call the function
-merge_jira_with_flattened(jira_csv_path, flattened_xlsx_path, jira_key_column, flattened_key_column)
-
-
-
------
-
-import pandas as pd
-import os
-
-def merge_jira_with_flattened(jira_csv_path: str,
-                               flattened_xlsx_path: str,
-                               jira_key_column: str,
-                               flattened_key_column: str) -> None:
-    """
-    Merges additional columns from flattened.xlsx into jira-logs.csv based on specified key columns.
-    The jira-logs.csv file is updated in place.
-
-    Parameters:
-    - jira_csv_path (str): Path to the jira-logs.csv file.
-    - flattened_xlsx_path (str): Path to the flattened.xlsx file.
-    - jira_key_column (str): The column name in jira-logs.csv to join on.
-    - flattened_key_column (str): The column name in flattened.xlsx to join on.
-
-    Returns:
-    - None
-    """
-    try:
-        # Read the jira-logs CSV file
-        df_jira = pd.read_csv(jira_csv_path)
-
-        # Read the flattened Excel file
-        df_flattened = pd.read_excel(flattened_xlsx_path)
-
-        # Ensure the key columns exist in both dataframes
-        if jira_key_column not in df_jira.columns:
-            raise KeyError(f"'{jira_key_column}' not found in jira-logs.csv.")
-        if flattened_key_column not in df_flattened.columns:
-            raise KeyError(f"'{flattened_key_column}' not found in flattened.xlsx.")
-
-        # Identify new columns to add (excluding the key column)
-        new_columns = [col for col in df_flattened.columns if col != flattened_key_column]
-
-        # Merge the dataframes on the specified key columns
-        df_merged = pd.merge(df_jira,
-                             df_flattened[[flattened_key_column] + new_columns],
-                             how='left',
-                             left_on=jira_key_column,
-                             right_on=flattened_key_column)
-
-        # Drop the redundant key column from flattened.xlsx if it's different
-        if jira_key_column != flattened_key_column:
-            df_merged.drop(columns=[flattened_key_column], inplace=True)
-
-        # Overwrite the original jira-logs.csv file
-        df_merged.to_csv(jira_csv_path, index=False)
-        print(f"Successfully updated '{jira_csv_path}' with additional columns from '{flattened_xlsx_path}'.")
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    for _, row in df.iterrows():
+        query_key = f"{row['Type'].strip()}: {row['Label'].strip()}"
+        query_value = str(row['JQL']).strip()
+        jql_query[query_key] = query_value
+    
+    return jql_query
