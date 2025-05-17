@@ -1,10 +1,17 @@
+import pandas as pd
+
 def load_jql_queries_from_excel(file_path: str, sheet_name: str = 'Sheet1') -> dict:
     df = pd.read_excel(file_path, sheet_name=sheet_name, dtype=str)
     jql_query = {}
 
     for _, row in df.iterrows():
-        query_key = f"{row['Type'].strip()}: {row['Label'].strip()}"
-        query_value = str(row['JQL']).strip()
-        jql_query[query_key] = query_value
-    
+        key = f"{row['Type'].strip()}: {row['Label'].strip()}"
+        query = row['JQL'].strip()
+
+        # Optional validation: Enforce quotes for labels with special characters
+        if "'" in key or ":" in key:
+            query = query.replace(row['Label'], f'"{row["Label"]}"')
+
+        jql_query[key] = query
+
     return jql_query
