@@ -44,5 +44,6 @@ def parse_outlook_preserve_order(text_path, output_excel="outlook_sequenced_outp
     df.to_excel(output_excel, index=False, engine='openpyxl')
     print(f"[Success] Output written to: {output_excel}")
 
+
 # Example usage
 parse_outlook_preserve_order("input_outlook_list.txt")
