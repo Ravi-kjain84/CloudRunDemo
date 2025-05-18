@@ -1,2 +1,40 @@
-print("[DEBUG] Schema preview:", schema[:3])
-print("[DEBUG] Schema field type:", type(schema[0]))
+import win32com.client
+import pandas as pd
+
+def extract_outlook_address_book_to_excel(output_path="outlook_address_book.xlsx"):
+    outlook = win32com.client.gencache.EnsureDispatch("Outlook.Application")
+    session = outlook.Session
+    address_lists = session.AddressLists
+
+    # Find the Global Address List
+    gal = None
+    for address_list in address_lists:
+        if address_list.Name == "Global Address List":
+            gal = address_list.AddressEntries
+            break
+
+    if not gal:
+        print("Global Address List not found.")
+        return
+
+    data = []
+    for entry in gal:
+        try:
+            exch_user = entry.GetExchangeUser()
+            if exch_user:
+                data.append({
+                    "Name": exch_user.Name,
+                    "Alias": exch_user.Alias,
+                    "Email": exch_user.PrimarySmtpAddress,
+                    "EmployeeID": exch_user.ID
+                })
+        except Exception:
+            continue
+
+    # Export to Excel
+    df = pd.DataFrame(data)
+    df.to_excel(output_path, index=False, engine='openpyxl')
+    print(f"Exported {len(df)} entries to {output_path}")
+
+# Run the function
+extract_outlook_address_book_to_excel()
