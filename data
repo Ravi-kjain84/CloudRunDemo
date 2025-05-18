@@ -1,3 +1,10 @@
+
+df.columns = df.columns.str.strip().str.replace(r'[^\w]+', '_', regex=True)
+
+
+
+
+
 # Flatten the chain into Level 0 to Level 14
 for i in range(15):
     if i < len(chain):
