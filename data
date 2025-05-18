@@ -1,25 +1,58 @@
 import win32com.client
 import pandas as pd
+from tqdm import tqdm
 
 def extract_outlook_address_book_to_excel(output_path="outlook_address_book.xlsx"):
-    outlook = win32com.client.gencache.EnsureDispatch("Outlook.Application")
-    session = outlook.Session
-    address_lists = session.AddressLists
+    print("\n[Step 1] Starting Outlook connection...")
+    try:
+        outlook = win32com.client.gencache.EnsureDispatch("Outlook.Application")
+        session = outlook.Session
+    except Exception as e:
+        print(f"[Error] Failed to connect to Outlook: {e}")
+        print("=> Ensure Outlook is installed and configured correctly.")
+        return
 
-    # Find the Global Address List
+    print("[Step 2] Retrieving address lists...")
+    address_lists = session.AddressLists
+    print(f"[Info] Found {address_lists.Count} address lists.")
+    print("         Available lists:")
+
+    for i in range(address_lists.Count):
+        print(f"         - {address_lists.Item(i+1).Name}")
+
+    # Try to find GAL
     gal = None
+    gal_name = "Global Address List"  # Update this if your GAL is named differently
+
     for address_list in address_lists:
-        if address_list.Name == "Global Address List":
+        if address_list.Name.strip().lower() == gal_name.lower():
             gal = address_list.AddressEntries
+            print(f"[Step 3] Found Global Address List: {address_list.Name}")
             break
 
     if not gal:
-        print("Global Address List not found.")
+        print(f"[Error] Could not find '{gal_name}'. Use a name from the printed list above.")
         return
 
-    data = []
-    for entry in gal:
+    print(f"[Step 4] Number of entries in GAL: {gal.Count}")
+    if gal.Count == 0:
+        print("[Warning] GAL is empty. Ensure Outlook is connected to Exchange.")
+        return
+
+    print("[Step 5] Reading first 10 entries for sampling...")
+    for i in range(min(10, gal.Count)):
         try:
+            entry = gal.Item(i + 1)
+            print(f"         Entry {i+1}: {entry.Name} | Type: {entry.AddressEntryUserType}")
+        except Exception as e:
+            print(f"         [Error] Entry {i+1} failed to read: {e}")
+
+    print("[Step 6] Extracting valid Exchange users with progress tracking...")
+
+    data = []
+    for i in tqdm(range(gal.Count), desc="Processing GAL entries"):
+        try:
+            entry = gal.Item(i + 1)
             exch_user = entry.GetExchangeUser()
             if exch_user:
                 data.append({
@@ -29,12 +62,18 @@ def extract_outlook_address_book_to_excel(output_path="outlook_address_book.xlsx
                     "EmployeeID": exch_user.ID
                 })
         except Exception:
-            continue
+            continue  # Skipping problematic entries silently
 
-    # Export to Excel
-    df = pd.DataFrame(data)
-    df.to_excel(output_path, index=False, engine='openpyxl')
-    print(f"Exported {len(df)} entries to {output_path}")
+    print(f"[Step 7] Extracted {len(data)} valid Exchange user records.")
+
+    if data:
+        print(f"[Step 8] Writing to Excel: {output_path}")
+        df = pd.DataFrame(data)
+        df.to_excel(output_path, index=False, engine='openpyxl')
+        print("[Success] Excel file created.")
+    else:
+        print("[Info] No data extracted. Please check earlier logs for guidance.")
 
 # Run the function
-extract_outlook_address_book_to_excel()
+if __name__ == "__main__":
+    extract_outlook_address_book_to_excel()
