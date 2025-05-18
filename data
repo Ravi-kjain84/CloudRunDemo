@@ -1,34 +1,22 @@
-import os
+def enforce_schema(df: pd.DataFrame, schema: list[bigquery.SchemaField]) -> pd.DataFrame:
+    """
+    Ensures the DataFrame's column types match the expected BigQuery schema.
+    Casts columns where needed to STRING, FLOAT, INT64, or TIMESTAMP.
+    """
+    for field in schema:
+        col = field.name
+        bq_type = field.field_type.upper()
 
-def upload_file_to_bq(
-    file_path: str,
-    bq_table_name: str,
-    dataset_name: str,
-    project: str,
-    schema=None,
-    force_refresh: bool = False,
-    auto_detect: bool = True
-):
-    ext = os.path.splitext(file_path)[-1].lower()
+        if col not in df.columns:
+            continue  # skip missing columns
 
-    if ext in [".xlsx", ".xls"]:
-        # Excel Upload
-        upload_excel_to_bq(
-            excel_file_path=file_path,
-            bq_table_name=bq_table_name,
-            dataset_name=dataset_name,
-            project=project,
-            force_refresh=force_refresh,
-            auto_detect=auto_detect
-        )
-    elif ext == ".csv":
-        # CSV Upload
-        upload_csv_to_bq(
-            csv_file_path=file_path,
-            bq_table_name=bq_table_name,
-            schema=schema,
-            force_refresh=force_refresh,
-            auto_detect=auto_detect
-        )
-    else:
-        raise ValueError("Unsupported file format. Use .csv or .xlsx/.xls")
+        if bq_type == "STRING":
+            df[col] = df[col].astype(str)
+        elif bq_type == "FLOAT":
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        elif bq_type == "INT64":
+            df[col] = pd.to_numeric(df[col], errors='coerce').astype("Int64")
+        elif bq_type == "TIMESTAMP":
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+        # Add more types as needed (e.g., BOOLEAN, DATE)
+    return df
