@@ -1,17 +1,23 @@
-import pandas as pd
+# Flatten the chain into Level 0 to Level 14
+for i in range(15):
+    if i < len(chain):
+        lvl = chain[i]
+        row[f"Level {i} Name"] = lvl.get("Name", "")
+        row[f"Level {i} Email"] = lvl.get("Email", "")
+        row[f"Level {i} Employee ID"] = lvl.get("Employee ID", "")
+        row[f"Level {i} Title"] = lvl.get("Title", "")
+    else:
+        row[f"Level {i} Name"] = ""
+        row[f"Level {i} Email"] = ""
+        row[f"Level {i} Employee ID"] = ""
+        row[f"Level {i} Title"] = ""
 
-def load_jql_queries_from_excel(file_path: str, sheet_name: str = 'Sheet1') -> dict:
-    df = pd.read_excel(file_path, sheet_name=sheet_name, dtype=str)
-    jql_query = {}
 
-    for _, row in df.iterrows():
-        key = f"{row['Type'].strip()}: {row['Label'].strip()}"
-        query = row['JQL'].strip()
-
-        # Optional validation: Enforce quotes for labels with special characters
-        if "'" in key or ":" in key:
-            query = query.replace(row['Label'], f'"{row["Label"]}"')
-
-        jql_query[key] = query
-
-    return jql_query
+# Add multi-level departments by email map (up to 15 levels)
+depts = self.resolve_multi_level_departments(chain)
+for j in range(1, 16):
+    if j <= len(depts):
+        dept = depts[j-1]
+        row[f"Department Level {j}"] = dept
+    else:
+        row[f"Department Level {j}"] = ""
