@@ -1,39 +1,48 @@
 import re
 import pandas as pd
 
-def parse_outlook_list_to_excel(text_path, output_excel="outlook_parsed_output.xlsx"):
+def parse_outlook_preserve_order(text_path, output_excel="outlook_sequenced_output.xlsx"):
     with open(text_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     entries = [entry.strip() for entry in content.split(';') if entry.strip()]
 
-    resolved = []
-    missing_ids = []
+    final_data = []
 
-    for entry in entries:
-        # Format: Name <email>
+    for idx, entry in enumerate(entries, 1):
+        serial = idx
+        emp_id = ""
+        name = ""
+        email = ""
+
+        # Match format: Name <email>
         match = re.match(r'^(.*)<(.*)>$', entry)
         if match:
             name = match.group(1).strip()
             email = match.group(2).strip()
-            resolved.append({"Name": name, "Email": email})
-        else:
-            # Check if it's a plain number (likely an employee ID)
-            if re.fullmatch(r'\d+', entry):
-                missing_ids.append({"UnresolvedEmployeeID": entry})
 
-    # Create DataFrames
-    df_resolved = pd.DataFrame(resolved)
-    df_missing = pd.DataFrame(missing_ids)
+            # Attempt to extract numeric ID from email prefix if available
+            prefix = email.split('@')[0]
+            id_match = re.match(r'^(\d{5,})', prefix)
+            if id_match:
+                emp_id = id_match.group(1)
 
-    # Write both sheets to a single Excel file
-    with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-        df_resolved.to_excel(writer, sheet_name='ResolvedNames', index=False)
-        df_missing.to_excel(writer, sheet_name='MissingIDs', index=False)
+        elif re.fullmatch(r'\d+', entry):  # Unresolved numeric ID
+            emp_id = entry
 
-    print(f"[Done] Saved to '{output_excel}'")
-    print(f" - Resolved entries: {len(df_resolved)}")
-    print(f" - Missing IDs: {len(df_missing)}")
+        final_data.append({
+            "SerialNumber": serial,
+            "EmployeeID": emp_id,
+            "Name": name,
+            "Email": email
+        })
+
+    # Convert to DataFrame
+    df = pd.DataFrame(final_data)
+
+    # Write to Excel
+    df.to_excel(output_excel, index=False, engine='openpyxl')
+    print(f"[Success] Output written to: {output_excel}")
 
 # Example usage
-parse_outlook_list_to_excel("input_outlook_list.txt")
+parse_outlook_preserve_order("input_outlook_list.txt")
