@@ -1,66 +1,34 @@
-import pandas as pd
-from google.cloud import bigquery
-from google.cloud.exceptions import NotFound
+import os
 
-def upload_excel_to_bq(
-    excel_file_path: str,
+def upload_file_to_bq(
+    file_path: str,
     bq_table_name: str,
     dataset_name: str,
     project: str,
+    schema=None,
     force_refresh: bool = False,
     auto_detect: bool = True
 ):
-    """
-    Load an Excel file into BigQuery.
-    - Uses pandas DataFrame for dynamic columns
-    - force_refresh=True: Truncate & reload
-    - Else: Append if schema matches, else truncate
-    - After append, removes exact duplicates
-    """
+    ext = os.path.splitext(file_path)[-1].lower()
 
-    # Initialize client and table reference
-    client = bigquery.Client(project=project)
-    table_id = f"{project}.{dataset_name}.{bq_table_name}"
-
-    # Load Excel file into DataFrame
-    df = pd.read_excel(excel_file_path)
-
-    # Check if table exists
-    try:
-        table = client.get_table(table_id)
-        table_exists = True
-    except NotFound:
-        table_exists = False
-
-    # Determine write disposition
-    if force_refresh or not table_exists:
-        write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
+    if ext in [".xlsx", ".xls"]:
+        # Excel Upload
+        upload_excel_to_bq(
+            excel_file_path=file_path,
+            bq_table_name=bq_table_name,
+            dataset_name=dataset_name,
+            project=project,
+            force_refresh=force_refresh,
+            auto_detect=auto_detect
+        )
+    elif ext == ".csv":
+        # CSV Upload
+        upload_csv_to_bq(
+            csv_file_path=file_path,
+            bq_table_name=bq_table_name,
+            schema=schema,
+            force_refresh=force_refresh,
+            auto_detect=auto_detect
+        )
     else:
-        existing_cols = [field.name for field in table.schema]
-        if existing_cols == list(df.columns):
-            write_disp = bigquery.WriteDisposition.WRITE_APPEND
-        else:
-            write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
-
-    # Configure load job
-    job_config = bigquery.LoadJobConfig(
-        autodetect=auto_detect,
-        write_disposition=write_disp,
-        create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED
-    )
-
-    # Upload DataFrame to BigQuery
-    load_job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
-    print(f"Started load job {load_job.job_id} for {excel_file_path} -> {table_id} ({write_disp})")
-    load_job.result()
-    print("Load complete.")
-
-    # Optional: Deduplicate if appended
-    if (not force_refresh and table_exists and 
-        write_disp == bigquery.WriteDisposition.WRITE_APPEND):
-        dedupe_sql = f"""
-        CREATE OR REPLACE TABLE `{table_id}` AS
-        SELECT DISTINCT * FROM `{table_id}`;
-        """
-        client.query(dedupe_sql).result()
-        print("Deduplication complete.")
+        raise ValueError("Unsupported file format. Use .csv or .xlsx/.xls")
