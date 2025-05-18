@@ -1,79 +1,39 @@
-import win32com.client
+import re
 import pandas as pd
-from tqdm import tqdm
 
-def extract_outlook_address_book_to_excel(output_path="outlook_address_book.xlsx"):
-    print("\n[Step 1] Starting Outlook connection...")
-    try:
-        outlook = win32com.client.gencache.EnsureDispatch("Outlook.Application")
-        session = outlook.Session
-    except Exception as e:
-        print(f"[Error] Failed to connect to Outlook: {e}")
-        print("=> Ensure Outlook is installed and configured correctly.")
-        return
+def parse_outlook_list_to_excel(text_path, output_excel="outlook_parsed_output.xlsx"):
+    with open(text_path, 'r', encoding='utf-8') as f:
+        content = f.read()
 
-    print("[Step 2] Retrieving address lists...")
-    address_lists = session.AddressLists
-    print(f"[Info] Found {address_lists.Count} address lists.")
-    print("         Available lists:")
+    entries = [entry.strip() for entry in content.split(';') if entry.strip()]
 
-    for i in range(address_lists.Count):
-        print(f"         - {address_lists.Item(i+1).Name}")
+    resolved = []
+    missing_ids = []
 
-    # Try to find GAL
-    gal = None
-    gal_name = "Global Address List"  # Update this if your GAL is named differently
+    for entry in entries:
+        # Format: Name <email>
+        match = re.match(r'^(.*)<(.*)>$', entry)
+        if match:
+            name = match.group(1).strip()
+            email = match.group(2).strip()
+            resolved.append({"Name": name, "Email": email})
+        else:
+            # Check if it's a plain number (likely an employee ID)
+            if re.fullmatch(r'\d+', entry):
+                missing_ids.append({"UnresolvedEmployeeID": entry})
 
-    for address_list in address_lists:
-        if address_list.Name.strip().lower() == gal_name.lower():
-            gal = address_list.AddressEntries
-            print(f"[Step 3] Found Global Address List: {address_list.Name}")
-            break
+    # Create DataFrames
+    df_resolved = pd.DataFrame(resolved)
+    df_missing = pd.DataFrame(missing_ids)
 
-    if not gal:
-        print(f"[Error] Could not find '{gal_name}'. Use a name from the printed list above.")
-        return
+    # Write both sheets to a single Excel file
+    with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+        df_resolved.to_excel(writer, sheet_name='ResolvedNames', index=False)
+        df_missing.to_excel(writer, sheet_name='MissingIDs', index=False)
 
-    print(f"[Step 4] Number of entries in GAL: {gal.Count}")
-    if gal.Count == 0:
-        print("[Warning] GAL is empty. Ensure Outlook is connected to Exchange.")
-        return
+    print(f"[Done] Saved to '{output_excel}'")
+    print(f" - Resolved entries: {len(df_resolved)}")
+    print(f" - Missing IDs: {len(df_missing)}")
 
-    print("[Step 5] Reading first 10 entries for sampling...")
-    for i in range(min(10, gal.Count)):
-        try:
-            entry = gal.Item(i + 1)
-            print(f"         Entry {i+1}: {entry.Name} | Type: {entry.AddressEntryUserType}")
-        except Exception as e:
-            print(f"         [Error] Entry {i+1} failed to read: {e}")
-
-    print("[Step 6] Extracting valid Exchange users with progress tracking...")
-
-    data = []
-    for i in tqdm(range(gal.Count), desc="Processing GAL entries"):
-        try:
-            entry = gal.Item(i + 1)
-            exch_user = entry.GetExchangeUser()
-            if exch_user:
-                data.append({
-                    "Name": exch_user.Name,
-                    "Alias": exch_user.Alias,
-                    "Email": exch_user.PrimarySmtpAddress,
-                    "EmployeeID": exch_user.ID
-                })
-        except Exception:
-            continue  # Skipping problematic entries silently
-
-    print(f"[Step 7] Extracted {len(data)} valid Exchange user records.")
-
-    if data:
-        print(f"[Step 8] Writing to Excel: {output_path}")
-        df = pd.DataFrame(data)
-        df.to_excel(output_path, index=False, engine='openpyxl')
-        print("[Success] Excel file created.")
-    else:
-        print("[Info] No data extracted. Please check earlier logs for guidance.")
-
-# Run the function
-if __name__ == "__main__":
-    extract_outlook_address_book_to_excel()
+# Example usage
+parse_outlook_list_to_excel("input_outlook_list.txt")
