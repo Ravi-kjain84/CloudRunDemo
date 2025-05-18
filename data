@@ -1,14 +1,17 @@
+import pandas as pd
+from google.cloud import bigquery
+from google.cloud.exceptions import NotFound
+
 def enforce_schema(df: pd.DataFrame, schema: list[bigquery.SchemaField]) -> pd.DataFrame:
     """
-    Ensures the DataFrame's column types match the expected BigQuery schema.
-    Casts columns where needed to STRING, FLOAT, INT64, or TIMESTAMP.
+    Cast DataFrame columns to match BigQuery schema types.
     """
     for field in schema:
         col = field.name
         bq_type = field.field_type.upper()
 
         if col not in df.columns:
-            continue  # skip missing columns
+            continue
 
         if bq_type == "STRING":
             df[col] = df[col].astype(str)
@@ -18,5 +21,70 @@ def enforce_schema(df: pd.DataFrame, schema: list[bigquery.SchemaField]) -> pd.D
             df[col] = pd.to_numeric(df[col], errors='coerce').astype("Int64")
         elif bq_type == "TIMESTAMP":
             df[col] = pd.to_datetime(df[col], errors='coerce')
-        # Add more types as needed (e.g., BOOLEAN, DATE)
     return df
+
+def upload_excel_to_bq(
+    excel_file_path: str,
+    bq_table_name: str,
+    dataset_name: str,
+    project: str,
+    schema: list[bigquery.SchemaField] = None,
+    force_refresh: bool = False,
+    auto_detect: bool = True
+):
+    """
+    Upload an Excel file to BigQuery.
+    Supports optional schema enforcement.
+    """
+
+    # Initialize BigQuery client
+    client = bigquery.Client(project=project)
+    table_id = f"{project}.{dataset_name}.{bq_table_name}"
+
+    # Read Excel into DataFrame
+    df = pd.read_excel(excel_file_path)
+
+    # Enforce schema if provided and autodetect is False
+    if schema and not auto_detect:
+        df = enforce_schema(df, schema)
+
+    # Check if table exists
+    try:
+        table = client.get_table(table_id)
+        table_exists = True
+    except NotFound:
+        table_exists = False
+
+    # Decide write disposition
+    if force_refresh or not table_exists:
+        write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
+    else:
+        existing_cols = [field.name for field in table.schema]
+        if existing_cols == list(df.columns):
+            write_disp = bigquery.WriteDisposition.WRITE_APPEND
+        else:
+            write_disp = bigquery.WriteDisposition.WRITE_TRUNCATE
+
+    # Configure load job
+    job_config = bigquery.LoadJobConfig(
+        write_disposition=write_disp,
+        autodetect=auto_detect,
+        schema=schema if not auto_detect else None,
+        create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED
+    )
+
+    # Upload the data
+    load_job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+    print(f"Started load job {load_job.job_id} for {excel_file_path} -> {table_id} ({write_disp})")
+    load_job.result()
+    print("Load complete.")
+
+    # Deduplicate if append
+    if (not force_refresh and table_exists and 
+        write_disp == bigquery.WriteDisposition.WRITE_APPEND):
+        dedupe_sql = f"""
+        CREATE OR REPLACE TABLE `{table_id}` AS
+        SELECT DISTINCT * FROM `{table_id}`;
+        """
+        client.query(dedupe_sql).result()
+        print("Deduplication complete.")
