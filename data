@@ -1,3 +1,7 @@
-SPLIT(filter_label, ":")[OFFSET(0)] AS issue_type_label,
-SPLIT(filter_label, ":")[OFFSET(1)] AS team_type_label,
-SPLIT(filter_label, ":")[OFFSET(2)] AS release_type_label
+SELECT
+  filter_label,
+  SPLIT(filter_label, ":")[OFFSET(0)] AS issue_type_label,
+  SPLIT(filter_label, ":")[OFFSET(1)] AS team_type_label,
+  TRIM(REGEXP_EXTRACT(filter_label, r'^[^:]+:[^:]+:(.+)$')) AS release_type_label
+FROM
+  your_table_name
