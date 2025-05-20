@@ -1,49 +1,30 @@
-import re
-import pandas as pd
+Certainly. Here’s the revised version with that clarification added:
 
-def parse_outlook_preserve_order(text_path, output_excel="outlook_sequenced_output.xlsx"):
-    with open(text_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+⸻
 
-    entries = [entry.strip() for entry in content.split(';') if entry.strip()]
+Subject: Required Trainings for Liquidity Testing Team – Confirmation & Next Steps
 
-    final_data = []
+Dear Arjun,
 
-    for idx, entry in enumerate(entries, 1):
-        serial = idx
-        emp_id = ""
-        name = ""
-        email = ""
+As part of the Testing CoE initiatives, two mandatory trainings have been identified for all testing resources—focused on the Digital Acceleration Program and Agile methodologies. The total time to complete both is approximately 2–3 hours.
 
-        # Match format: Name <email>
-        match = re.match(r'^(.*)<(.*)>$', entry)
-        if match:
-            name = match.group(1).strip()
-            email = match.group(2).strip()
+The RWA testing team has already completed these, with 20 resources finishing within the standard three-week timeline. We now plan to roll out the same to the Liquidity Testing Team.
 
-            # Attempt to extract numeric ID from email prefix if available
-            prefix = email.split('@')[0]
-            id_match = re.match(r'^(\d{5,})', prefix)
-            if id_match:
-                emp_id = id_match.group(1)
+Before we send the communication tomorrow morning from the Testing CoE mailbox, please let me know by EOD if:
+	•	You foresee any challenges in meeting the three-week timeline, or
+	•	You suggest an alternate schedule based on current team workload.
 
-        elif re.fullmatch(r'\d+', entry):  # Unresolved numeric ID
-            emp_id = entry
+Please note that we will follow a defined escalation matrix in case of delays. Also, as the Business Testing and QA Lead, you are requested to complete these trainings as well.
 
-        final_data.append({
-            "SerialNumber": serial,
-            "EmployeeID": emp_id,
-            "Name": name,
-            "Email": email
-        })
+The draft mail and recipient list are ready. Let me know if you have any concerns or would like to discuss.
 
-    # Convert to DataFrame
-    df = pd.DataFrame(final_data)
+Best regards,
+[Your Name]
+Testing CoE | Finance Transformation
+[Contact Info]
 
-    # Write to Excel
-    df.to_excel(output_excel, index=False, engine='openpyxl')
-    print(f"[Success] Output written to: {output_excel}")
+⸻
+
+Let me know if you want to include the escalation matrix or standard team mail text below this.
 
 
-# Example usage
-parse_outlook_preserve_order("input_outlook_list.txt")
