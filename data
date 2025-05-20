@@ -1,1 +1,1 @@
-gehe
+IF(CONTAINS_TEXT(LOWER(label), "automated"), 1, 0)
