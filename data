@@ -1,1 +1,27 @@
-IF(CONTAINS_TEXT(LOWER(label), "automated"), 1, 0)
+import pandas as pd
+
+# Load the input Excel file
+df = pd.read_excel("employee_manager_with_roles.xlsx")
+
+# Step 1: Generate unique Emp ID for each employee
+df['Emp ID'] = pd.factorize(df['Employee Email'])[0] + 1  # Start from 1
+
+# Step 2: Create mapping from Employee Email to Emp ID for Managers
+email_to_id = dict(zip(df['Employee Email'], df['Emp ID']))
+
+# Step 3: Derive 'Reports to' Emp ID using Manager Email
+df['Reports to'] = df['Manager Email'].map(email_to_id)
+
+# Step 4: Prepare Visio Org Chart format
+df_visio = pd.DataFrame()
+df_visio['Emp ID'] = df['Emp ID']
+df_visio['Name'] = df['Employee Name']
+df_visio['Title'] = df['Employee Title']
+df_visio['Reports to'] = df['Reports to']
+df_visio['Email'] = df['Employee Email']
+
+# Step 5: Export to Excel
+output_file = "visio_org_chart_with_email.xlsx"
+df_visio.to_excel(output_file, index=False)
+
+print(f"Visio org chart file saved as: {output_file}")
