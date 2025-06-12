@@ -1,1 +1,47 @@
-ss
+Text.Combine(
+    List.RemoveNulls({
+        
+        // Block: bigquery1
+        if List.NonNullCount({[project_01], [batch_01], [table_01], [column_01], [where_clause_01]}) > 0 then
+            Text.Combine({
+                "  ""bigquery1"": {",
+                if [project_01] <> null then "    ""project"": """ & [project_01] & """," else null,
+                if [batch_01] <> null then "    ""dataset"": """ & [batch_01] & """," else null,
+                if [table_01] <> null then "    ""table"": """ & [table_01] & """," else null,
+                if [column_01] <> null then "    ""column"": """ & [column_01] & """," else null,
+                if [where_clause_01] <> null then "    ""where_clause"": """ & [where_clause_01] & """" else null,
+                "  },"
+            }, "#(lf)") else null,
+
+        // Block: bigquery2
+        if List.NonNullCount({[project_02], [batch_02], [table_02], [column_02], [where_clause_02]}) > 0 then
+            Text.Combine({
+                "  ""bigquery2"": {",
+                if [project_02] <> null then "    ""project"": """ & [project_02] & """," else null,
+                if [batch_02] <> null then "    ""dataset"": """ & [batch_02] & """," else null,
+                if [table_02] <> null then "    ""table"": """ & [table_02] & """," else null,
+                if [column_02] <> null then "    ""column"": """ & [column_02] & """," else null,
+                if [where_clause_02] <> null then "    ""where_clause"": """ & [where_clause_02] & """" else null,
+                "  },"
+            }, "#(lf)") else null,
+
+        // Direct Fields
+        if [SQL] <> null then "  ""sql_query"": """ & [SQL] & """," else null,
+        if [group_by_columns] <> null then "  ""group_by_columns"": [""" & Text.Combine([group_by_columns], """,""") & """]," else null,
+        if [amount_column] <> null then "  ""amount_column"": """ & [amount_column] & """," else null,
+
+        // Block: local_database
+        if List.NonNullCount({[folder], [file], [sheet]}) > 0 then
+            Text.Combine({
+                "  ""local_database"": {",
+                if [folder] <> null then "    ""folder"": """ & [folder] & """," else null,
+                if [file] <> null then "    ""file"": """ & [file] & """," else null,
+                if [sheet] <> null then "    ""sheet"": """ & [sheet] & """" else null,
+                "  },"
+            }, "#(lf)") else null,
+
+        // Final Field
+        if [include_columns] <> null then "  ""include_columns"": [""" & Text.Combine([include_columns], """,""") & """]," else null
+
+    }),
+"#(lf)")
