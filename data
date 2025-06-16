@@ -1,20 +1,57 @@
-import os
-from openpyxl import Workbook
+That is a very efficient and robust approach. You can wrap the original query in a WITH clause, run SELECT COUNT(*) FROM subquery, and only run the full query if the count is under 10,000.
 
-def write_testcase_wise_workbooks(test_evidence, test_cases):
-    # Create output directory if it doesn't exist
-    output_dir = "output/testcases"
-    os.makedirs(output_dir, exist_ok=True)
+Below is your optimized and memory-safe code update.
 
-    for test_case_id, evidence in test_evidence.items():
-        wb = Workbook()
-        ws = wb.active
-        ws.title = str(test_case_id)
+⸻
 
-        # Write the test case content to the sheet
-        write_test_case_block(ws, test_case_id, evidence, test_cases)
+✅ Updated Function Logic (Using Count Check First)
 
-        # Save workbook to output/testcases/ folder
-        filename = os.path.join(output_dir, f"TestEvidence_{test_case_id}.xlsx")
-        wb.save(filename)
-        print(f"Saved workbook for test case {test_case_id} to {filename}")
+try:
+    # Wrap user query in a CTE to perform count only
+    count_query = f"""
+        WITH original_query AS (
+            {query}
+        )
+        SELECT COUNT(*) AS total_rows FROM original_query
+    """
+
+    count_df = client.query(count_query).to_dataframe()
+    row_count = count_df.iloc[0]["total_rows"]
+
+    # Log row count
+    print(f"Row count from query: {row_count}")
+
+    if row_count > 10000:
+        print(f"⚠️ Warning: Query would return {row_count} rows. Skipping execution to prevent memory overload.")
+        result = "Warning: Row count exceeds 10,000"
+        df = None  # or use df = pd.DataFrame() if needed downstream
+    else:
+        # Safe to execute the original query
+        df = client.query(query).to_dataframe()
+        print("Query executed successfully.")
+
+        result = "TBD based on query results"
+
+        if "case" in query.lower():
+            if not df.empty and df.shape[1] > 0:
+                sql_result = str(df.iloc[0, 0]).strip().lower()
+                additional_info = df.iloc[0, 1:].to_dict() if df.shape[1] > 1 else {}
+
+                if sql_result == "pass":
+                    result = "Pass"
+                else:
+                    result = "Fail"
+            else:
+                result = "Fail"
+
+
+⸻
+
+🔍 Benefits:
+	•	Prevents loading large datasets into memory.
+	•	Ensures only “safe” queries get executed.
+	•	Keeps code modular and fast for large-scale test execution.
+
+⸻
+
+Would you like me to integrate this logic into the full execute_custom_bigquery() function and provide you with a complete version, including proper return handling?
