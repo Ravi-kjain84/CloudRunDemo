@@ -1,57 +1,61 @@
-That is a very efficient and robust approach. You can wrap the original query in a WITH clause, run SELECT COUNT(*) FROM subquery, and only run the full query if the count is under 10,000.
-
-Below is your optimized and memory-safe code update.
+Certainly. Below are the four revised versions with Rakesh Sharma’s name included in the subject line, keeping the same tone levels:
 
 ⸻
 
-✅ Updated Function Logic (Using Count Check First)
+📧 Subject: Acknowledgement of Rakesh Sharma’s Support During June Pilot and Quarterly Release Preparation
 
-try:
-    # Wrap user query in a CTE to perform count only
-    count_query = f"""
-        WITH original_query AS (
-            {query}
-        )
-        SELECT COUNT(*) AS total_rows FROM original_query
-    """
+Version 1 – Neutral and Factual
 
-    count_df = client.query(count_query).to_dataframe()
-    row_count = count_df.iloc[0]["total_rows"]
+Dear Oh Rushan,
+As discussed in our one-on-one today, I would like to acknowledge the contribution of Rakesh Sharma, who is currently leading the June month-end release for the RWA sub-value stream under the Financial Controller value stream.
 
-    # Log row count
-    print(f"Row count from query: {row_count}")
+He has supported the pilot run effectively and has also assisted in training colleagues for the upcoming quarterly release. His efforts have been timely and aligned well with the team’s objectives.
 
-    if row_count > 10000:
-        print(f"⚠️ Warning: Query would return {row_count} rows. Skipping execution to prevent memory overload.")
-        result = "Warning: Row count exceeds 10,000"
-        df = None  # or use df = pd.DataFrame() if needed downstream
-    else:
-        # Safe to execute the original query
-        df = client.query(query).to_dataframe()
-        print("Query executed successfully.")
-
-        result = "TBD based on query results"
-
-        if "case" in query.lower():
-            if not df.empty and df.shape[1] > 0:
-                sql_result = str(df.iloc[0, 0]).strip().lower()
-                additional_info = df.iloc[0, 1:].to_dict() if df.shape[1] > 1 else {}
-
-                if sql_result == "pass":
-                    result = "Pass"
-                else:
-                    result = "Fail"
-            else:
-                result = "Fail"
-
+Best regards,
+Ravi Kumar Jain
 
 ⸻
 
-🔍 Benefits:
-	•	Prevents loading large datasets into memory.
-	•	Ensures only “safe” queries get executed.
-	•	Keeps code modular and fast for large-scale test execution.
+📧 Subject: Recognition of Rakesh Sharma’s Efforts in June Pilot and Release Readiness
+
+Version 2 – Mild Appreciation
+
+Dear Oh Rushan,
+As discussed in our one-on-one today, I would like to acknowledge the contribution of Rakesh Sharma, who is currently leading the June month-end release for the RWA sub-value stream under the Financial Controller value stream.
+
+He has provided steady support throughout the pilot run and has contributed to onboarding and training team members for the quarterly release. His consistent effort adds value to the team.
+
+Best regards,
+Ravi Kumar Jain
 
 ⸻
 
-Would you like me to integrate this logic into the full execute_custom_bigquery() function and provide you with a complete version, including proper return handling?
+📧 Subject: Appreciation for Rakesh Sharma’s Leadership in June Release Activities
+
+Version 3 – Balanced Praise
+
+Dear Oh Rushan,
+As discussed in our one-on-one today, I’d like to acknowledge Rakesh Sharma’s contribution in leading the June month-end release for the RWA sub-value stream under the Financial Controller value stream.
+
+He has been proactive during the pilot run and has supported the enablement of colleagues for the upcoming quarterly release. His involvement has been valuable, and he remains a dependable member of the team.
+
+Best regards,
+Ravi Kumar Jain
+
+⸻
+
+📧 Subject: Commendation for Rakesh Sharma – June Release and Team Enablement
+
+Version 4 – High Appreciation
+
+Dear Oh Rushan,
+As discussed in our one-on-one today, I want to highlight the strong contribution made by Rakesh Sharma, who is currently leading the June month-end release for the RWA sub-value stream under the Financial Controller value stream.
+
+His commitment during the pilot run, coupled with his effort in preparing and training team members for the upcoming quarterly release, has been commendable. His contribution has had a meaningful impact, and he continues to be a strong asset to the team.
+
+Best regards,
+Ravi Kumar Jain
+
+⸻
+
+Let me know if you’d like a fifth option or a version suitable for copying into MS Outlook with formatting.
