@@ -1,1 +1,7 @@
-gg
+let
+    Source = ...,
+    Cleaned = Table.AddColumn(Source, "Cleaned", each Text.TrimStart([Merged], "|")),
+    Split = Table.SplitColumn(Cleaned, "Cleaned", Splitter.SplitTextByDelimiter("|", QuoteStyle.Csv)),
+    Renamed = Table.RenameColumns(Split, List.Zip({Table.ColumnNames(Split), List.Transform({1..Table.ColumnCount(Split)-1}, each "Level " & Text.From(_))}))
+in
+    Renamed
